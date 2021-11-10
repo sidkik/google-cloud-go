@@ -31,10 +31,12 @@ import (
 	"cloud.google.com/go/internal/godocfx/pkgload"
 	"cloud.google.com/go/third_party/go/doc"
 	"golang.org/x/sys/execabs"
+	"google.golang.org/genproto/googleapis/gapic/metadata"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // Generate reads all modules in rootDir and outputs their examples in outDir.
-func Generate(rootDir, outDir string) error {
+func Generate(rootDir, outDir string, apiShortnames map[string]string) error {
 	if rootDir == "" {
 		rootDir = "."
 	}
@@ -60,6 +62,7 @@ func Generate(rootDir, outDir string) error {
 	log.Printf("Processing examples in %v directories: %q\n", len(dirs), dirs)
 
 	trimPrefix := "cloud.google.com/go"
+	errs := []error{}
 	for _, dir := range dirs {
 		// Load does not look at nested modules.
 		pis, err := pkgload.Load("./...", dir, nil)
@@ -67,10 +70,13 @@ func Generate(rootDir, outDir string) error {
 			return fmt.Errorf("failed to load packages: %v", err)
 		}
 		for _, pi := range pis {
-			if err := processExamples(pi.Doc, pi.Fset, trimPrefix, outDir); err != nil {
-				return fmt.Errorf("failed to process examples: %v", err)
+			if eErrs := processExamples(pi.Doc, pi.Fset, trimPrefix, rootDir, outDir, apiShortnames); len(eErrs) > 0 {
+				errs = append(errs, fmt.Errorf("%v", eErrs))
 			}
 		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("example errors: %v", errs)
 	}
 
 	if len(dirs) > 0 {
@@ -84,47 +90,105 @@ func Generate(rootDir, outDir string) error {
 	return nil
 }
 
-func processExamples(pkg *doc.Package, fset *token.FileSet, trimPrefix, outDir string) error {
-	trimmed := strings.TrimPrefix(pkg.ImportPath, trimPrefix)
-	outDir = filepath.Join(outDir, trimmed)
-
-	regionTag := "generated" + strings.ReplaceAll(trimmed, "/", "_")
-
-	// Note: variables and constants don't have examples.
-
-	for _, f := range pkg.Funcs {
-		dir := filepath.Join(outDir, f.Name)
-		if err := writeExamples(dir, f.Examples, fset, regionTag); err != nil {
-			return err
-		}
-	}
-
-	for _, t := range pkg.Types {
-		dir := filepath.Join(outDir, t.Name)
-		if err := writeExamples(dir, t.Examples, fset, regionTag); err != nil {
-			return err
-		}
-		for _, f := range t.Funcs {
-			fDir := filepath.Join(dir, f.Name)
-			if err := writeExamples(fDir, f.Examples, fset, regionTag); err != nil {
-				return err
-			}
-		}
-		for _, m := range t.Methods {
-			mDir := filepath.Join(dir, m.Name)
-			if err := writeExamples(mDir, m.Examples, fset, regionTag); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+var skip = map[string]bool{
+	"cloud.google.com/go":                          true, // No product for root package.
+	"cloud.google.com/go/civil":                    true, // General time/date package.
+	"cloud.google.com/go/cloudbuild/apiv1":         true, // Has v2.
+	"cloud.google.com/go/cmd/go-cloud-debug-agent": true, // Command line tool.
+	"cloud.google.com/go/container":                true, // Deprecated.
+	"cloud.google.com/go/containeranalysis/apiv1":  true, // Accidental beta at wrong path?
+	"cloud.google.com/go/grafeas/apiv1":            true, // With containeranalysis.
+	"cloud.google.com/go/httpreplay":               true, // Helper.
+	"cloud.google.com/go/httpreplay/cmd/httpr":     true, // Helper.
+	"cloud.google.com/go/longrunning":              true, // Helper.
+	"cloud.google.com/go/monitoring/apiv3":         true, // Has v2.
+	"cloud.google.com/go/translate":                true, // Has newer version.
 }
 
-func writeExamples(outDir string, exs []*doc.Example, fset *token.FileSet, regionTag string) error {
-	if len(exs) == 0 {
+func processExamples(pkg *doc.Package, fset *token.FileSet, trimPrefix, rootDir, outDir string, apiShortnames map[string]string) []error {
+	if skip[pkg.ImportPath] {
+		return nil
+	}
+	trimmed := strings.TrimPrefix(pkg.ImportPath, trimPrefix)
+	regionTags, err := computeRegionTags(rootDir, trimmed, apiShortnames)
+	if err != nil {
+		return []error{err}
+	}
+	if len(regionTags) == 0 {
 		// Nothing to do.
 		return nil
 	}
+	outDir = filepath.Join(outDir, trimmed)
+
+	// Note: only process methods because they correspond to RPCs.
+
+	var errs []error
+	for _, t := range pkg.Types {
+		for _, m := range t.Methods {
+			if len(m.Examples) == 0 {
+				// Nothing to do for this method.
+				continue
+			}
+			dir := filepath.Join(outDir, t.Name, m.Name)
+			regionTag, ok := regionTags[t.Name][m.Name]
+			if !ok {
+				errs = append(errs, fmt.Errorf("could not find region tag for %s %s.%s", pkg.ImportPath, t.Name, m.Name))
+				continue
+			}
+			if err := writeExamples(dir, m.Examples, fset, regionTag); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errs
+}
+
+// computeRegionTags gets the region tags for the given path, keyed by client name and method name.
+func computeRegionTags(rootDir, path string, apiShortnames map[string]string) (regionTags map[string]map[string]string, err error) {
+	metadataPath := filepath.Join(rootDir, path, "gapic_metadata.json")
+	f, err := os.ReadFile(metadataPath)
+	if err != nil {
+		// If there is no gapic_metadata.json file, don't generate snippets.
+		// This isn't an error, though, because some packages aren't GAPICs and
+		// shouldn't get snippets in the first place.
+		return nil, nil
+	}
+	m := metadata.GapicMetadata{}
+	if err := protojson.Unmarshal(f, &m); err != nil {
+		return nil, err
+	}
+	shortname, ok := apiShortnames[m.GetLibraryPackage()]
+	if !ok {
+		return nil, fmt.Errorf("could not find shortname for %q", m.GetLibraryPackage())
+	}
+	protoParts := strings.Split(m.GetProtoPackage(), ".")
+	apiVersion := protoParts[len(protoParts)-1]
+
+	regionTags = map[string]map[string]string{}
+	for sName, s := range m.GetServices() {
+		for _, c := range s.GetClients() {
+			for rpc, methods := range c.GetRpcs() {
+				if len(methods.GetMethods()) != 1 {
+					return nil, fmt.Errorf("%s %s %s found %d methods", m.GetLibraryPackage(), sName, c.GetLibraryClient(), len(methods.GetMethods()))
+				}
+				if methods.GetMethods()[0] != rpc {
+					return nil, fmt.Errorf("%s %s %s %q does not match %q", m.GetLibraryPackage(), sName, c.GetLibraryClient(), methods.GetMethods()[0], rpc)
+				}
+
+				// Every Go method is synchronous.
+				regionTag := fmt.Sprintf("%s_%s_generated_%s_%s_sync", shortname, apiVersion, sName, rpc)
+
+				if regionTags[c.GetLibraryClient()] == nil {
+					regionTags[c.GetLibraryClient()] = map[string]string{}
+				}
+				regionTags[c.GetLibraryClient()][rpc] = regionTag
+			}
+		}
+	}
+	return regionTags, nil
+}
+
+func writeExamples(outDir string, exs []*doc.Example, fset *token.FileSet, regionTag string) error {
 	for _, ex := range exs {
 		dir := outDir
 		if len(exs) > 1 {
@@ -166,18 +230,22 @@ func writeExamples(outDir string, exs []*doc.Example, fset *token.FileSet, regio
 		if _, err := f.WriteString(header()); err != nil {
 			return err
 		}
-		// TODO(tbpg): print the right region tag.
-		// tag := regionTag + "_" + ex.Name
+
+		tag := regionTag
+		if len(ex.Suffix) > 0 {
+			tag += "_" + ex.Suffix
+		}
+
 		// Include an extra newline to keep separate from the package declaration.
-		// if _, err := fmt.Fprintf(f, "// [START %v]\n\n", tag); err != nil {
-		// 	return err
-		// }
+		if _, err := fmt.Fprintf(f, "// [START %v]\n\n", tag); err != nil {
+			return err
+		}
 		if _, err := f.WriteString(s); err != nil {
 			return err
 		}
-		// if _, err := fmt.Fprintf(f, "// [END %v]\n", tag); err != nil {
-		// 	return err
-		// }
+		if _, err := fmt.Fprintf(f, "\n// [END %v]\n", tag); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -199,5 +267,7 @@ const licenseHeader string = `// Copyright %v Google LLC
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// Code generated by cloud.google.com/go/internal/gapicgen/gensnippets. DO NOT EDIT.
 
 `

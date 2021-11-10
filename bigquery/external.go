@@ -90,12 +90,20 @@ type ExternalDataConfig struct {
 	// when reading data.
 	MaxBadRecords int64
 
-	// Additional options for CSV, GoogleSheets and Bigtable formats.
+	// Additional options for CSV, GoogleSheets, Bigtable, and Parquet formats.
 	Options ExternalDataConfigOptions
 
 	// HivePartitioningOptions allows use of Hive partitioning based on the
 	// layout of objects in Google Cloud Storage.
 	HivePartitioningOptions *HivePartitioningOptions
+
+	// DecimalTargetTypes allows selection of how decimal values are converted when
+	// processed in bigquery, subject to the value type having sufficient precision/scale
+	// to support the values.  In the order of NUMERIC, BIGNUMERIC, and STRING, a type is
+	// selected if is present in the list and if supports the necessary precision and scale.
+	//
+	// StringTargetType supports all precision and scale values.
+	DecimalTargetTypes []DecimalTargetType
 }
 
 func (e *ExternalDataConfig) toBQ() bq.ExternalDataConfiguration {
@@ -114,6 +122,9 @@ func (e *ExternalDataConfig) toBQ() bq.ExternalDataConfiguration {
 	if e.Options != nil {
 		e.Options.populateExternalDataConfig(&q)
 	}
+	for _, v := range e.DecimalTargetTypes {
+		q.DecimalTargetTypes = append(q.DecimalTargetTypes, string(v))
+	}
 	return q
 }
 
@@ -128,7 +139,12 @@ func bqToExternalDataConfig(q *bq.ExternalDataConfiguration) (*ExternalDataConfi
 		Schema:                  bqToSchema(q.Schema),
 		HivePartitioningOptions: bqToHivePartitioningOptions(q.HivePartitioningOptions),
 	}
+	for _, v := range q.DecimalTargetTypes {
+		e.DecimalTargetTypes = append(e.DecimalTargetTypes, DecimalTargetType(v))
+	}
 	switch {
+	case q.AvroOptions != nil:
+		e.Options = bqToAvroOptions(q.AvroOptions)
 	case q.CsvOptions != nil:
 		e.Options = bqToCSVOptions(q.CsvOptions)
 	case q.GoogleSheetsOptions != nil:
@@ -139,6 +155,8 @@ func bqToExternalDataConfig(q *bq.ExternalDataConfiguration) (*ExternalDataConfi
 		if err != nil {
 			return nil, err
 		}
+	case q.ParquetOptions != nil:
+		e.Options = bqToParquetOptions(q.ParquetOptions)
 	}
 	return e, nil
 }
@@ -147,6 +165,29 @@ func bqToExternalDataConfig(q *bq.ExternalDataConfiguration) (*ExternalDataConfi
 // This interface is implemented by CSVOptions, GoogleSheetsOptions and BigtableOptions.
 type ExternalDataConfigOptions interface {
 	populateExternalDataConfig(*bq.ExternalDataConfiguration)
+}
+
+// AvroOptions are additional options for Avro external data data sources.
+type AvroOptions struct {
+	// UseAvroLogicalTypes indicates whether to interpret logical types as the
+	// corresponding BigQuery data type (for example, TIMESTAMP), instead of using
+	// the raw type (for example, INTEGER).
+	UseAvroLogicalTypes bool
+}
+
+func (o *AvroOptions) populateExternalDataConfig(c *bq.ExternalDataConfiguration) {
+	c.AvroOptions = &bq.AvroOptions{
+		UseAvroLogicalTypes: o.UseAvroLogicalTypes,
+	}
+}
+
+func bqToAvroOptions(q *bq.AvroOptions) *AvroOptions {
+	if q == nil {
+		return nil
+	}
+	return &AvroOptions{
+		UseAvroLogicalTypes: q.UseAvroLogicalTypes,
+	}
 }
 
 // CSVOptions are additional options for CSV external data sources.
@@ -414,6 +455,36 @@ func bqToBigtableColumn(q *bq.BigtableColumn) (*BigtableColumn, error) {
 		b.Qualifier = string(bytes)
 	}
 	return b, nil
+}
+
+// ParquetOptions are additional options for Parquet external data sources.
+type ParquetOptions struct {
+	// EnumAsString indicates whether to infer Parquet ENUM logical type as
+	// STRING instead of BYTES by default.
+	EnumAsString bool
+
+	// EnableListInference indicates whether to use schema inference
+	// specifically for Parquet LIST logical type.
+	EnableListInference bool
+}
+
+func (o *ParquetOptions) populateExternalDataConfig(c *bq.ExternalDataConfiguration) {
+	if o != nil {
+		c.ParquetOptions = &bq.ParquetOptions{
+			EnumAsString:        o.EnumAsString,
+			EnableListInference: o.EnableListInference,
+		}
+	}
+}
+
+func bqToParquetOptions(q *bq.ParquetOptions) *ParquetOptions {
+	if q == nil {
+		return nil
+	}
+	return &ParquetOptions{
+		EnumAsString:        q.EnumAsString,
+		EnableListInference: q.EnableListInference,
+	}
 }
 
 // HivePartitioningMode is used in conjunction with HivePartitioningOptions.

@@ -32,7 +32,7 @@ func TestParseQuery(t *testing.T) {
 		want Query
 	}{
 		{`SELECT 17`, Query{Select: Select{List: []Expr{IntegerLiteral(17)}}}},
-		{`SELECT Alias AS aka FROM Characters WHERE Age < @ageLimit AND Alias IS NOT NULL ORDER BY Age DESC LIMIT @limit OFFSET 3` + "\n\t",
+		{`SELECT Alias AS aka From Characters WHERE Age < @ageLimit AND Alias IS NOT NULL ORDER BY Age DESC LIMIT @limit OFFSET 3` + "\n\t",
 			Query{
 				Select: Select{
 					List: []Expr{ID("Alias")},
@@ -83,6 +83,57 @@ func TestParseQuery(t *testing.T) {
 				},
 			},
 		},
+		{`SELECT date, timestamp as timestamp FROM Packages WHERE date = DATE '2014-09-27' AND timestamp = TIMESTAMP '2014-09-27 12:30:00'`,
+			Query{
+				Select: Select{
+					List: []Expr{ID("date"), ID("timestamp")},
+					From: []SelectFrom{SelectFromTable{Table: "Packages"}},
+					Where: LogicalOp{
+						Op: And,
+						LHS: ComparisonOp{
+							Op:  Eq,
+							LHS: ID("date"),
+							RHS: DateLiteral{Year: 2014, Month: 9, Day: 27},
+						},
+						RHS: ComparisonOp{
+							Op:  Eq,
+							LHS: ID("timestamp"),
+							RHS: TimestampLiteral(timef(t, "2006-01-02 15:04:05", "2014-09-27 12:30:00")),
+						},
+					},
+					ListAliases: []ID{"", "timestamp"},
+				},
+			},
+		},
+		{`SELECT UNIX_DATE(DATE "2008-12-25")`,
+			Query{
+				Select: Select{
+					List: []Expr{Func{Name: "UNIX_DATE", Args: []Expr{DateLiteral{Year: 2008, Month: 12, Day: 25}}}},
+				},
+			},
+		},
+		{`SELECT * FROM Foo WHERE STARTS_WITH(Bar, 'B')`,
+			Query{
+				Select: Select{
+					List:  []Expr{Star},
+					From:  []SelectFrom{SelectFromTable{Table: "Foo"}},
+					Where: Func{Name: "STARTS_WITH", Args: []Expr{ID("Bar"), StringLiteral("B")}},
+				},
+			},
+		},
+		{`SELECT * FROM Foo WHERE CAST(Bar AS STRING)='Bar'`,
+			Query{
+				Select: Select{
+					List: []Expr{Star},
+					From: []SelectFrom{SelectFromTable{Table: "Foo"}},
+					Where: ComparisonOp{
+						Op:  Eq,
+						LHS: Func{Name: "CAST", Args: []Expr{TypedExpr{Expr: ID("Bar"), Type: Type{Base: String}}}},
+						RHS: StringLiteral("Bar"),
+					},
+				},
+			},
+		},
 		{`SELECT SUM(PointsScored) AS total_points, FirstName, LastName AS surname FROM PlayerStats GROUP BY FirstName, LastName`,
 			Query{
 				Select: Select{
@@ -111,6 +162,34 @@ func TestParseQuery(t *testing.T) {
 						RHS: Param("userID"),
 					},
 					ListAliases: []ID{"count"},
+				},
+			},
+		},
+		// with single table hint
+		{`SELECT * FROM Packages@{FORCE_INDEX=PackagesIdx} WHERE package_idx=@packageIdx`,
+			Query{
+				Select: Select{
+					List: []Expr{Star},
+					From: []SelectFrom{SelectFromTable{Table: "Packages", Hints: map[string]string{"FORCE_INDEX": "PackagesIdx"}}},
+					Where: ComparisonOp{
+						Op:  Eq,
+						LHS: ID("package_idx"),
+						RHS: Param("packageIdx"),
+					},
+				},
+			},
+		},
+		// with multiple table hints
+		{`SELECT * FROM Packages@{ FORCE_INDEX=PackagesIdx, GROUPBY_SCAN_OPTIMIZATION=TRUE } WHERE package_idx=@packageIdx`,
+			Query{
+				Select: Select{
+					List: []Expr{Star},
+					From: []SelectFrom{SelectFromTable{Table: "Packages", Hints: map[string]string{"FORCE_INDEX": "PackagesIdx", "GROUPBY_SCAN_OPTIMIZATION": "TRUE"}}},
+					Where: ComparisonOp{
+						Op:  Eq,
+						LHS: ID("package_idx"),
+						RHS: Param("packageIdx"),
+					},
 				},
 			},
 		},
@@ -257,6 +336,11 @@ func TestParseExpr(t *testing.T) {
 		{`@needle IN UNNEST(@haystack)`, InOp{LHS: Param("needle"), RHS: []Expr{Param("haystack")}, Unnest: true}},
 		{`@needle NOT IN UNNEST(@haystack)`, InOp{LHS: Param("needle"), Neg: true, RHS: []Expr{Param("haystack")}, Unnest: true}},
 
+		// Functions
+		{`STARTS_WITH(Bar, 'B')`, Func{Name: "STARTS_WITH", Args: []Expr{ID("Bar"), StringLiteral("B")}}},
+		{`CAST(Bar AS STRING)`, Func{Name: "CAST", Args: []Expr{TypedExpr{Expr: ID("Bar"), Type: Type{Base: String}}}}},
+		{`SAFE_CAST(Bar AS INT64)`, Func{Name: "SAFE_CAST", Args: []Expr{TypedExpr{Expr: ID("Bar"), Type: Type{Base: Int64}}}}},
+
 		// String literal:
 		// Accept double quote and single quote.
 		{`"hello"`, StringLiteral("hello")},
@@ -308,7 +392,14 @@ func TestParseExpr(t *testing.T) {
 
 		// Date and timestamp literals:
 		{`DATE '2014-09-27'`, DateLiteral(civil.Date{Year: 2014, Month: time.September, Day: 27})},
+		{`TIMESTAMP '2014-09-27 12:30:00'`, TimestampLiteral(timef(t, "2006-01-02 15:04:05", "2014-09-27 12:30:00"))},
 
+		// date and timestamp funclit
+		{`DATE('2014-09-27')`, Func{Name: "DATE", Args: []Expr{StringLiteral("2014-09-27")}}},
+		{`TIMESTAMP('2014-09-27 12:30:00')`, Func{Name: "TIMESTAMP", Args: []Expr{StringLiteral("2014-09-27 12:30:00")}}},
+		// date and timestamp identifier
+		{`DATE = '2014-09-27'`, ComparisonOp{LHS: ID("DATE"), Op: Eq, RHS: StringLiteral("2014-09-27")}},
+		{`TIMESTAMP = '2014-09-27 12:30:00'`, ComparisonOp{LHS: ID("TIMESTAMP"), Op: Eq, RHS: StringLiteral("2014-09-27 12:30:00")}},
 		// Array literals:
 		// https://cloud.google.com/spanner/docs/lexical#array_literals
 		{`[1, 2, 3]`, Array{IntegerLiteral(1), IntegerLiteral(2), IntegerLiteral(3)}},
@@ -410,8 +501,31 @@ func TestParseDDL(t *testing.T) {
 		-- Table with generated column.
 		CREATE TABLE GenCol (
 			Name STRING(MAX) NOT NULL,
-			NameLen INT64 AS (CHAR_LENGTH(Name)) STORED,
+			NameLen INT64 AS (char_length(Name)) STORED,
 		) PRIMARY KEY (Name);
+
+		-- Table with row deletion policy.
+		CREATE TABLE WithRowDeletionPolicy (
+			Name STRING(MAX) NOT NULL,
+			DelTimestamp TIMESTAMP NOT NULL,
+		) PRIMARY KEY (Name)
+		, ROW DELETION POLICY ( OLDER_THAN ( DelTimestamp, INTERVAL 30 DAY ));
+
+		ALTER TABLE WithRowDeletionPolicy DROP ROW DELETION POLICY;
+		ALTER TABLE WithRowDeletionPolicy ADD ROW DELETION POLICY ( OLDER_THAN ( DelTimestamp, INTERVAL 30 DAY ));
+		ALTER TABLE WithRowDeletionPolicy REPLACE ROW DELETION POLICY ( OLDER_THAN ( DelTimestamp, INTERVAL 30 DAY ));
+
+		CREATE VIEW SingersView
+		SQL SECURITY INVOKER
+		AS SELECT SingerId, FullName
+		FROM Singers
+		ORDER BY LastName, FirstName;
+
+		CREATE TABLE users (
+		  user_id      STRING(36) NOT NULL,
+		  some_string  STRING(16) NOT NULL,
+		  number_key   INT64 AS (SAFE_CAST(SUBSTR(some_string, 2) AS INT64)) STORED,
+		) PRIMARY KEY(user_id);
 
 		-- Trailing comment at end of file.
 		`, &DDL{Filename: "filename", List: []DDLStmt{
@@ -564,6 +678,83 @@ func TestParseDDL(t *testing.T) {
 				PrimaryKey: []KeyPart{{Column: "Name"}},
 				Position:   line(44),
 			},
+			&CreateTable{
+				Name: "WithRowDeletionPolicy",
+				Columns: []ColumnDef{
+					{Name: "Name", Type: Type{Base: String, Len: MaxLen}, NotNull: true, Position: line(51)},
+					{Name: "DelTimestamp", Type: Type{Base: Timestamp}, NotNull: true, Position: line(52)},
+				},
+				PrimaryKey: []KeyPart{{Column: "Name"}},
+				RowDeletionPolicy: &RowDeletionPolicy{
+					Column:  ID("DelTimestamp"),
+					NumDays: 30,
+				},
+				Position: line(50),
+			},
+			&AlterTable{
+				Name:       "WithRowDeletionPolicy",
+				Alteration: DropRowDeletionPolicy{},
+				Position:   line(56),
+			},
+			&AlterTable{
+				Name: "WithRowDeletionPolicy",
+				Alteration: AddRowDeletionPolicy{
+					RowDeletionPolicy: RowDeletionPolicy{
+						Column:  ID("DelTimestamp"),
+						NumDays: 30,
+					},
+				},
+				Position: line(57),
+			},
+			&AlterTable{
+				Name: "WithRowDeletionPolicy",
+				Alteration: ReplaceRowDeletionPolicy{
+					RowDeletionPolicy: RowDeletionPolicy{
+						Column:  ID("DelTimestamp"),
+						NumDays: 30,
+					},
+				},
+				Position: line(58),
+			},
+			&CreateView{
+				Name:      "SingersView",
+				OrReplace: false,
+				Query: Query{
+					Select: Select{
+						List: []Expr{ID("SingerId"), ID("FullName")},
+						From: []SelectFrom{SelectFromTable{
+							Table: "Singers",
+						}},
+					},
+					Order: []Order{
+						{Expr: ID("LastName")},
+						{Expr: ID("FirstName")},
+					},
+				},
+				Position: line(60),
+			},
+
+			//	CREATE TABLE users (
+			//	user_id      STRING(36) NOT NULL,
+			//	some_string  STRING(16) NOT NULL,
+			//	number_key   INT64 AS (SAFE_CAST(SUBSTR(some_string, 2) AS INT64)) STORED,
+			//) PRIMARY KEY(user_id);
+			&CreateTable{
+				Name: "users",
+				Columns: []ColumnDef{
+					{Name: "user_id", Type: Type{Base: String, Len: 36}, NotNull: true, Position: line(67)},
+					{Name: "some_string", Type: Type{Base: String, Len: 16}, NotNull: true, Position: line(68)},
+					{
+						Name: "number_key", Type: Type{Base: Int64},
+						Generated: Func{Name: "SAFE_CAST", Args: []Expr{
+							TypedExpr{Expr: Func{Name: "SUBSTR", Args: []Expr{ID("some_string"), IntegerLiteral(2)}}, Type: Type{Base: Int64}},
+						}},
+						Position: line(69),
+					},
+				},
+				PrimaryKey: []KeyPart{{Column: "user_id"}},
+				Position:   line(66),
+			},
 		}, Comments: []*Comment{
 			{Marker: "#", Start: line(2), End: line(2),
 				Text: []string{"This is a comment."}},
@@ -583,9 +774,10 @@ func TestParseDDL(t *testing.T) {
 			{Marker: "--", Isolated: true, Start: line(38), End: line(38), Text: []string{"leading multi comment immediately after inline comment"}},
 
 			{Marker: "--", Isolated: true, Start: line(43), End: line(43), Text: []string{"Table with generated column."}},
+			{Marker: "--", Isolated: true, Start: line(49), End: line(49), Text: []string{"Table with row deletion policy."}},
 
 			// Comment after everything else.
-			{Marker: "--", Isolated: true, Start: line(49), End: line(49), Text: []string{"Trailing comment at end of file."}},
+			{Marker: "--", Isolated: true, Start: line(72), End: line(72), Text: []string{"Trailing comment at end of file."}},
 		}}},
 		// No trailing comma:
 		{`ALTER TABLE T ADD COLUMN C2 INT64`, &DDL{Filename: "filename", List: []DDLStmt{
@@ -611,6 +803,65 @@ func TestParseDDL(t *testing.T) {
 				Position: line(1),
 			},
 		}}},
+		{`ALTER DATABASE dbname SET OPTIONS (optimizer_version=2, version_retention_period='7d', enable_key_visualizer=true)`,
+			&DDL{Filename: "filename", List: []DDLStmt{
+				&AlterDatabase{
+					Name: "dbname",
+					Alteration: SetDatabaseOptions{
+						Options: DatabaseOptions{
+							OptimizerVersion:       func(i int) *int { return &i }(2),
+							VersionRetentionPeriod: func(s string) *string { return &s }("7d"),
+							EnableKeyVisualizer:    func(b bool) *bool { return &b }(true),
+						},
+					},
+					Position: line(1),
+				},
+			},
+			}},
+		{`ALTER DATABASE dbname SET OPTIONS (optimizer_version=null, version_retention_period=null, enable_key_visualizer=null)`,
+			&DDL{Filename: "filename", List: []DDLStmt{
+				&AlterDatabase{
+					Name: "dbname",
+					Alteration: SetDatabaseOptions{
+						Options: DatabaseOptions{
+							OptimizerVersion:       func(i int) *int { return &i }(0),
+							VersionRetentionPeriod: func(s string) *string { return &s }(""),
+							EnableKeyVisualizer:    func(b bool) *bool { return &b }(false),
+						},
+					},
+					Position: line(1),
+				},
+			},
+			}},
+		{"CREATE OR REPLACE VIEW `SingersView` SQL SECURITY INVOKER AS SELECT SingerId, FullName, Picture FROM Singers ORDER BY LastName, FirstName",
+			&DDL{Filename: "filename", List: []DDLStmt{
+				&CreateView{
+					Name:      "SingersView",
+					OrReplace: true,
+					Query: Query{
+						Select: Select{
+							List: []Expr{ID("SingerId"), ID("FullName"), ID("Picture")},
+							From: []SelectFrom{SelectFromTable{
+								Table: "Singers",
+							}},
+						},
+						Order: []Order{
+							{Expr: ID("LastName")},
+							{Expr: ID("FirstName")},
+						},
+					},
+					Position: line(1),
+				},
+			},
+			}},
+		{"DROP VIEW `SingersView`",
+			&DDL{Filename: "filename", List: []DDLStmt{
+				&DropView{
+					Name:     "SingersView",
+					Position: line(1),
+				},
+			},
+			}},
 	}
 	for _, test := range tests {
 		got, err := ParseDDL("filename", test.in)
@@ -737,4 +988,12 @@ func TestParseFailures(t *testing.T) {
 			t.Errorf("%s: parsing [%s] succeeded, should have failed", test.desc, test.in)
 		}
 	}
+}
+
+func timef(t *testing.T, format, s string) time.Time {
+	ti, err := time.ParseInLocation(format, string(s), defaultLocation)
+	if err != nil {
+		t.Errorf("parsing %s [%s] time.ParseInLocation failed.", s, format)
+	}
+	return ti
 }

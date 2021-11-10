@@ -84,6 +84,7 @@ func TestSQL(t *testing.T) {
 					{Name: "Ck", Type: Type{Array: true, Base: String, Len: MaxLen}, Position: line(12)},
 					{Name: "Cl", Type: Type{Base: Timestamp}, Options: ColumnOptions{AllowCommitTimestamp: boolAddr(false)}, Position: line(13)},
 					{Name: "Cm", Type: Type{Base: Int64}, Generated: Func{Name: "CHAR_LENGTH", Args: []Expr{ID("Ce")}}, Position: line(14)},
+					{Name: "Cn", Type: Type{Base: JSON}, Position: line(15)},
 				},
 				PrimaryKey: []KeyPart{
 					{Column: "Ca"},
@@ -105,6 +106,7 @@ func TestSQL(t *testing.T) {
   Ck ARRAY<STRING(MAX)>,
   Cl TIMESTAMP OPTIONS (allow_commit_timestamp = null),
   Cm INT64 AS (CHAR_LENGTH(Ce)) STORED,
+  Cn JSON,
 ) PRIMARY KEY(Ca, Cb DESC)`,
 			reparseDDL,
 		},
@@ -136,6 +138,27 @@ func TestSQL(t *testing.T) {
 			reparseDDL,
 		},
 		{
+			&CreateTable{
+				Name: "WithRowDeletionPolicy",
+				Columns: []ColumnDef{
+					{Name: "Name", Type: Type{Base: String, Len: MaxLen}, NotNull: true, Position: line(2)},
+					{Name: "DelTimestamp", Type: Type{Base: Timestamp}, NotNull: true, Position: line(3)},
+				},
+				PrimaryKey: []KeyPart{{Column: "Name"}},
+				RowDeletionPolicy: &RowDeletionPolicy{
+					Column:  ID("DelTimestamp"),
+					NumDays: 30,
+				},
+				Position: line(1),
+			},
+			`CREATE TABLE WithRowDeletionPolicy (
+  Name STRING(MAX) NOT NULL,
+  DelTimestamp TIMESTAMP NOT NULL,
+) PRIMARY KEY(Name),
+  ROW DELETION POLICY ( OLDER_THAN ( DelTimestamp, INTERVAL 30 DAY ))`,
+			reparseDDL,
+		},
+		{
 			&DropTable{
 				Name:     "Ta",
 				Position: line(1),
@@ -162,6 +185,35 @@ func TestSQL(t *testing.T) {
 				Position: line(1),
 			},
 			"DROP INDEX Ia",
+			reparseDDL,
+		},
+		{
+			&CreateView{
+				Name:      "SingersView",
+				OrReplace: true,
+				Query: Query{
+					Select: Select{
+						List: []Expr{ID("SingerId"), ID("FullName"), ID("Picture")},
+						From: []SelectFrom{SelectFromTable{
+							Table: "Singers",
+						}},
+					},
+					Order: []Order{
+						{Expr: ID("LastName")},
+						{Expr: ID("FirstName")},
+					},
+				},
+				Position: line(1),
+			},
+			"CREATE OR REPLACE VIEW SingersView SQL SECURITY INVOKER AS SELECT SingerId, FullName, Picture FROM Singers ORDER BY LastName, FirstName",
+			reparseDDL,
+		},
+		{
+			&DropView{
+				Name:     "SingersView",
+				Position: line(1),
+			},
+			"DROP VIEW SingersView",
 			reparseDDL,
 		},
 		{
@@ -231,6 +283,91 @@ func TestSQL(t *testing.T) {
 			reparseDDL,
 		},
 		{
+			&AlterTable{
+				Name:       "WithRowDeletionPolicy",
+				Alteration: DropRowDeletionPolicy{},
+				Position:   line(1),
+			},
+			"ALTER TABLE WithRowDeletionPolicy DROP ROW DELETION POLICY",
+			reparseDDL,
+		},
+		{
+			&AlterTable{
+				Name: "WithRowDeletionPolicy",
+				Alteration: AddRowDeletionPolicy{
+					RowDeletionPolicy: RowDeletionPolicy{
+						Column:  ID("DelTimestamp"),
+						NumDays: 30,
+					},
+				},
+				Position: line(1),
+			},
+			"ALTER TABLE WithRowDeletionPolicy ADD ROW DELETION POLICY ( OLDER_THAN ( DelTimestamp, INTERVAL 30 DAY ))",
+			reparseDDL,
+		},
+		{
+			&AlterTable{
+				Name: "WithRowDeletionPolicy",
+				Alteration: ReplaceRowDeletionPolicy{
+					RowDeletionPolicy: RowDeletionPolicy{
+						Column:  ID("DelTimestamp"),
+						NumDays: 30,
+					},
+				},
+				Position: line(1),
+			},
+			"ALTER TABLE WithRowDeletionPolicy REPLACE ROW DELETION POLICY ( OLDER_THAN ( DelTimestamp, INTERVAL 30 DAY ))",
+			reparseDDL,
+		},
+		{
+			&AlterDatabase{
+				Name: "dbname",
+				Alteration: SetDatabaseOptions{Options: DatabaseOptions{
+					EnableKeyVisualizer: func(b bool) *bool { return &b }(true),
+				}},
+				Position: line(1),
+			},
+			"ALTER DATABASE dbname SET OPTIONS (enable_key_visualizer=true)",
+			reparseDDL,
+		},
+		{
+			&AlterDatabase{
+				Name: "dbname",
+				Alteration: SetDatabaseOptions{Options: DatabaseOptions{
+					OptimizerVersion: func(i int) *int { return &i }(2),
+				}},
+				Position: line(1),
+			},
+			"ALTER DATABASE dbname SET OPTIONS (optimizer_version=2)",
+			reparseDDL,
+		},
+		{
+			&AlterDatabase{
+				Name: "dbname",
+				Alteration: SetDatabaseOptions{Options: DatabaseOptions{
+					VersionRetentionPeriod: func(s string) *string { return &s }("7d"),
+					OptimizerVersion:       func(i int) *int { return &i }(2),
+					EnableKeyVisualizer:    func(b bool) *bool { return &b }(true),
+				}},
+				Position: line(1),
+			},
+			"ALTER DATABASE dbname SET OPTIONS (optimizer_version=2, version_retention_period='7d', enable_key_visualizer=true)",
+			reparseDDL,
+		},
+		{
+			&AlterDatabase{
+				Name: "dbname",
+				Alteration: SetDatabaseOptions{Options: DatabaseOptions{
+					VersionRetentionPeriod: func(s string) *string { return &s }(""),
+					OptimizerVersion:       func(i int) *int { return &i }(0),
+					EnableKeyVisualizer:    func(b bool) *bool { return &b }(false),
+				}},
+				Position: line(1),
+			},
+			"ALTER DATABASE dbname SET OPTIONS (optimizer_version=null, version_retention_period=null, enable_key_visualizer=null)",
+			reparseDDL,
+		},
+		{
 			&Delete{
 				Table: "Ta",
 				Where: ComparisonOp{
@@ -286,10 +423,70 @@ func TestSQL(t *testing.T) {
 		{
 			Query{
 				Select: Select{
+					List: []Expr{ID("A")},
+					From: []SelectFrom{SelectFromTable{
+						Table: "Table",
+						Hints: map[string]string{"FORCE_INDEX": "Idx"},
+					}},
+					Where: ComparisonOp{
+						LHS: ID("B"),
+						Op:  Eq,
+						RHS: Param("b"),
+					},
+				},
+			},
+			`SELECT A FROM Table@{FORCE_INDEX=Idx} WHERE B = @b`,
+			reparseQuery,
+		},
+		{
+			Query{
+				Select: Select{
+					List: []Expr{ID("A")},
+					From: []SelectFrom{SelectFromTable{
+						Table: "Table",
+						Hints: map[string]string{"FORCE_INDEX": "Idx", "GROUPBY_SCAN_OPTIMIZATION": "TRUE"},
+					}},
+					Where: ComparisonOp{
+						LHS: ID("B"),
+						Op:  Eq,
+						RHS: Param("b"),
+					},
+				},
+			},
+			`SELECT A FROM Table@{FORCE_INDEX=Idx,GROUPBY_SCAN_OPTIMIZATION=TRUE} WHERE B = @b`,
+			reparseQuery,
+		},
+		{
+			Query{
+				Select: Select{
 					List: []Expr{IntegerLiteral(7)},
 				},
 			},
 			`SELECT 7`,
+			reparseQuery,
+		},
+		{
+			Query{
+				Select: Select{
+					List: []Expr{Func{
+						Name: "CAST",
+						Args: []Expr{TypedExpr{Expr: IntegerLiteral(7), Type: Type{Base: String}}},
+					}},
+				},
+			},
+			`SELECT CAST(7 AS STRING)`,
+			reparseQuery,
+		},
+		{
+			Query{
+				Select: Select{
+					List: []Expr{Func{
+						Name: "SAFE_CAST",
+						Args: []Expr{TypedExpr{Expr: IntegerLiteral(7), Type: Type{Base: Date}}},
+					}},
+				},
+			},
+			`SELECT SAFE_CAST(7 AS DATE)`,
 			reparseQuery,
 		},
 		{
@@ -339,6 +536,34 @@ func TestSQL(t *testing.T) {
 				},
 			},
 			"SELECT A, B FROM Table1 INNER JOIN Table2 ON Table1.A = Table2.A",
+			reparseQuery,
+		},
+		{
+			Query{
+				Select: Select{
+					List: []Expr{
+						ID("A"), ID("B"),
+					},
+					From: []SelectFrom{
+						SelectFromJoin{
+							Type: InnerJoin,
+							LHS: SelectFromJoin{
+								Type: InnerJoin,
+								LHS:  SelectFromTable{Table: "Table1"},
+								RHS:  SelectFromTable{Table: "Table2"},
+								On: ComparisonOp{
+									LHS: PathExp{"Table1", "A"},
+									Op:  Eq,
+									RHS: PathExp{"Table2", "A"},
+								},
+							},
+							RHS:   SelectFromTable{Table: "Table3"},
+							Using: []ID{"X"},
+						},
+					},
+				},
+			},
+			"SELECT A, B FROM Table1 INNER JOIN Table2 ON Table1.A = Table2.A INNER JOIN Table3 USING (X)",
 			reparseQuery,
 		},
 	}

@@ -16,9 +16,11 @@
 package execv
 
 import (
+	"io/fs"
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -31,7 +33,6 @@ type CmdWrapper struct {
 // The commands stdout/stderr default to os.Stdout/os.Stderr respectfully.
 func Command(name string, arg ...string) *CmdWrapper {
 	c := &CmdWrapper{exec.Command(name, arg...)}
-	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	c.Stdin = os.Stdin
 	return &CmdWrapper{exec.Command(name, arg...)}
@@ -39,6 +40,40 @@ func Command(name string, arg ...string) *CmdWrapper {
 
 // Run a command.
 func (c *CmdWrapper) Run() error {
-	log.Printf("[%s] >>>> %v <<<<", c.Dir, strings.Join(c.Args, " ")) // NOTE: we have some multi-line commands, make it clear where the command starts and ends
-	return c.Cmd.Run()
+	b, err := c.Output()
+	if len(b) > 0 {
+		log.Printf("Command Output: %s", b)
+	}
+	return err
+}
+
+// Output a command.
+func (c *CmdWrapper) Output() ([]byte, error) {
+	log.Printf("[%s] >>>> %v <<<<", c.Dir, strings.Join(c.Args, " "))
+	b, err := c.Cmd.Output()
+	if err != nil {
+		if ee, ok := err.(*exec.ExitError); ok {
+			log.Println(string(ee.Stderr))
+		}
+	}
+	return b, err
+}
+
+// ForEachMod runs the given function with the directory of
+// every non-internal module.
+func ForEachMod(rootDir string, fn func(dir string) error) error {
+	return filepath.WalkDir(rootDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if strings.Contains(path, "internal") {
+			return filepath.SkipDir
+		}
+		if d.Name() == "go.mod" {
+			if err := fn(filepath.Dir(path)); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

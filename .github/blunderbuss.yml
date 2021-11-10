@@ -4,7 +4,7 @@ assign_issues_by:
   - 'api: datastore'
   - 'api: firestore'
   to:
-  - crwilcox
+  - dmahugh
 - labels:
   - 'api: storage'
   to:
@@ -25,4 +25,4 @@ assign_issues_by:
   - 'api: logging'
   - 'api: clouderrorreporting'
   to:
-  - nicoleczhu
+  - googleapis/api-logging

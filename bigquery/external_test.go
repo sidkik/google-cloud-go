@@ -80,6 +80,23 @@ func TestExternalDataConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			SourceFormat: Parquet,
+			Options: &ParquetOptions{
+				EnumAsString:        true,
+				EnableListInference: true,
+			},
+		},
+		{
+			SourceFormat:       Parquet,
+			DecimalTargetTypes: []DecimalTargetType{BigNumericTargetType, NumericTargetType, StringTargetType},
+		},
+		{
+			SourceFormat: Avro,
+			Options: &AvroOptions{
+				UseAvroLogicalTypes: true,
+			},
+		},
 	} {
 		q := want.toBQ()
 		got, err := bqToExternalDataConfig(&q)

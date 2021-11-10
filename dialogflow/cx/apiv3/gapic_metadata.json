@@ -59,6 +59,44 @@
         }
       }
     },
+    "Changelogs": {
+      "clients": {
+        "grpc": {
+          "libraryClient": "ChangelogsClient",
+          "rpcs": {
+            "GetChangelog": {
+              "methods": [
+                "GetChangelog"
+              ]
+            },
+            "ListChangelogs": {
+              "methods": [
+                "ListChangelogs"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "Deployments": {
+      "clients": {
+        "grpc": {
+          "libraryClient": "DeploymentsClient",
+          "rpcs": {
+            "GetDeployment": {
+              "methods": [
+                "GetDeployment"
+              ]
+            },
+            "ListDeployments": {
+              "methods": [
+                "ListDeployments"
+              ]
+            }
+          }
+        }
+      }
+    },
     "EntityTypes": {
       "clients": {
         "grpc": {
@@ -108,9 +146,19 @@
                 "DeleteEnvironment"
               ]
             },
+            "DeployFlow": {
+              "methods": [
+                "DeployFlow"
+              ]
+            },
             "GetEnvironment": {
               "methods": [
                 "GetEnvironment"
+              ]
+            },
+            "ListContinuousTestResults": {
+              "methods": [
+                "ListContinuousTestResults"
               ]
             },
             "ListEnvironments": {
@@ -121,6 +169,11 @@
             "LookupEnvironmentHistory": {
               "methods": [
                 "LookupEnvironmentHistory"
+              ]
+            },
+            "RunContinuousTest": {
+              "methods": [
+                "RunContinuousTest"
               ]
             },
             "UpdateEnvironment": {
@@ -191,6 +244,11 @@
                 "DeleteFlow"
               ]
             },
+            "ExportFlow": {
+              "methods": [
+                "ExportFlow"
+              ]
+            },
             "GetFlow": {
               "methods": [
                 "GetFlow"
@@ -199,6 +257,11 @@
             "GetFlowValidationResult": {
               "methods": [
                 "GetFlowValidationResult"
+              ]
+            },
+            "ImportFlow": {
+              "methods": [
+                "ImportFlow"
               ]
             },
             "ListFlows": {
