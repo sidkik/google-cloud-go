@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"time"
 
+	clouddmspb "cloud.google.com/go/clouddms/apiv1/clouddmspb"
 	"cloud.google.com/go/longrunning"
 	lroauto "cloud.google.com/go/longrunning/autogen"
 	gax "github.com/googleapis/gax-go/v2"
@@ -30,7 +31,6 @@ import (
 	"google.golang.org/api/option"
 	"google.golang.org/api/option/internaloption"
 	gtransport "google.golang.org/api/transport/grpc"
-	clouddmspb "google.golang.org/genproto/googleapis/cloud/clouddms/v1"
 	longrunningpb "google.golang.org/genproto/googleapis/longrunning"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -67,7 +67,6 @@ func defaultDataMigrationGRPCClientOptions() []option.ClientOption {
 		internaloption.WithDefaultAudience("https://datamigration.googleapis.com/"),
 		internaloption.WithDefaultScopes(DefaultAuthScopes()...),
 		internaloption.EnableJwtWithScope(),
-		option.WithGRPCDialOption(grpc.WithDisableServiceConfig()),
 		option.WithGRPCDialOption(grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(math.MaxInt32))),
 	}
@@ -95,7 +94,7 @@ func defaultDataMigrationCallOptions() *DataMigrationCallOptions {
 	}
 }
 
-// internalDataMigrationClient is an interface that defines the methods availaible from Database Migration API.
+// internalDataMigrationClient is an interface that defines the methods available from Database Migration API.
 type internalDataMigrationClient interface {
 	Close() error
 	setGoogleClientInfo(...string)
@@ -165,7 +164,8 @@ func (c *DataMigrationClient) setGoogleClientInfo(keyval ...string) {
 
 // Connection returns a connection to the API service.
 //
-// Deprecated.
+// Deprecated: Connections are now pooled so this method does not always
+// return the same resource.
 func (c *DataMigrationClient) Connection() *grpc.ClientConn {
 	return c.internalClient.Connection()
 }
@@ -411,7 +411,8 @@ func NewDataMigrationClient(ctx context.Context, opts ...option.ClientOption) (*
 
 // Connection returns a connection to the API service.
 //
-// Deprecated.
+// Deprecated: Connections are now pooled so this method does not always
+// return the same resource.
 func (c *dataMigrationGRPCClient) Connection() *grpc.ClientConn {
 	return c.connPool.Conn()
 }
@@ -421,7 +422,7 @@ func (c *dataMigrationGRPCClient) Connection() *grpc.ClientConn {
 // use by Google-written clients.
 func (c *dataMigrationGRPCClient) setGoogleClientInfo(keyval ...string) {
 	kv := append([]string{"gl-go", versionGo()}, keyval...)
-	kv = append(kv, "gapic", versionClient, "gax", gax.Version, "grpc", grpc.Version)
+	kv = append(kv, "gapic", getVersionClient(), "gax", gax.Version, "grpc", grpc.Version)
 	c.xGoogMetadata = metadata.Pairs("x-goog-api-client", gax.XGoogHeader(kv...))
 }
 
@@ -433,6 +434,7 @@ func (c *dataMigrationGRPCClient) Close() error {
 
 func (c *dataMigrationGRPCClient) ListMigrationJobs(ctx context.Context, req *clouddmspb.ListMigrationJobsRequest, opts ...gax.CallOption) *MigrationJobIterator {
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).ListMigrationJobs[0:len((*c.CallOptions).ListMigrationJobs):len((*c.CallOptions).ListMigrationJobs)], opts...)
 	it := &MigrationJobIterator{}
@@ -482,6 +484,7 @@ func (c *dataMigrationGRPCClient) GetMigrationJob(ctx context.Context, req *clou
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).GetMigrationJob[0:len((*c.CallOptions).GetMigrationJob):len((*c.CallOptions).GetMigrationJob)], opts...)
 	var resp *clouddmspb.MigrationJob
@@ -503,6 +506,7 @@ func (c *dataMigrationGRPCClient) CreateMigrationJob(ctx context.Context, req *c
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).CreateMigrationJob[0:len((*c.CallOptions).CreateMigrationJob):len((*c.CallOptions).CreateMigrationJob)], opts...)
 	var resp *longrunningpb.Operation
@@ -526,6 +530,7 @@ func (c *dataMigrationGRPCClient) UpdateMigrationJob(ctx context.Context, req *c
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "migration_job.name", url.QueryEscape(req.GetMigrationJob().GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).UpdateMigrationJob[0:len((*c.CallOptions).UpdateMigrationJob):len((*c.CallOptions).UpdateMigrationJob)], opts...)
 	var resp *longrunningpb.Operation
@@ -549,6 +554,7 @@ func (c *dataMigrationGRPCClient) DeleteMigrationJob(ctx context.Context, req *c
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).DeleteMigrationJob[0:len((*c.CallOptions).DeleteMigrationJob):len((*c.CallOptions).DeleteMigrationJob)], opts...)
 	var resp *longrunningpb.Operation
@@ -572,6 +578,7 @@ func (c *dataMigrationGRPCClient) StartMigrationJob(ctx context.Context, req *cl
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).StartMigrationJob[0:len((*c.CallOptions).StartMigrationJob):len((*c.CallOptions).StartMigrationJob)], opts...)
 	var resp *longrunningpb.Operation
@@ -595,6 +602,7 @@ func (c *dataMigrationGRPCClient) StopMigrationJob(ctx context.Context, req *clo
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).StopMigrationJob[0:len((*c.CallOptions).StopMigrationJob):len((*c.CallOptions).StopMigrationJob)], opts...)
 	var resp *longrunningpb.Operation
@@ -618,6 +626,7 @@ func (c *dataMigrationGRPCClient) ResumeMigrationJob(ctx context.Context, req *c
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).ResumeMigrationJob[0:len((*c.CallOptions).ResumeMigrationJob):len((*c.CallOptions).ResumeMigrationJob)], opts...)
 	var resp *longrunningpb.Operation
@@ -641,6 +650,7 @@ func (c *dataMigrationGRPCClient) PromoteMigrationJob(ctx context.Context, req *
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).PromoteMigrationJob[0:len((*c.CallOptions).PromoteMigrationJob):len((*c.CallOptions).PromoteMigrationJob)], opts...)
 	var resp *longrunningpb.Operation
@@ -664,6 +674,7 @@ func (c *dataMigrationGRPCClient) VerifyMigrationJob(ctx context.Context, req *c
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).VerifyMigrationJob[0:len((*c.CallOptions).VerifyMigrationJob):len((*c.CallOptions).VerifyMigrationJob)], opts...)
 	var resp *longrunningpb.Operation
@@ -687,6 +698,7 @@ func (c *dataMigrationGRPCClient) RestartMigrationJob(ctx context.Context, req *
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).RestartMigrationJob[0:len((*c.CallOptions).RestartMigrationJob):len((*c.CallOptions).RestartMigrationJob)], opts...)
 	var resp *longrunningpb.Operation
@@ -710,6 +722,7 @@ func (c *dataMigrationGRPCClient) GenerateSshScript(ctx context.Context, req *cl
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "migration_job", url.QueryEscape(req.GetMigrationJob())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).GenerateSshScript[0:len((*c.CallOptions).GenerateSshScript):len((*c.CallOptions).GenerateSshScript)], opts...)
 	var resp *clouddmspb.SshScript
@@ -726,6 +739,7 @@ func (c *dataMigrationGRPCClient) GenerateSshScript(ctx context.Context, req *cl
 
 func (c *dataMigrationGRPCClient) ListConnectionProfiles(ctx context.Context, req *clouddmspb.ListConnectionProfilesRequest, opts ...gax.CallOption) *ConnectionProfileIterator {
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).ListConnectionProfiles[0:len((*c.CallOptions).ListConnectionProfiles):len((*c.CallOptions).ListConnectionProfiles)], opts...)
 	it := &ConnectionProfileIterator{}
@@ -775,6 +789,7 @@ func (c *dataMigrationGRPCClient) GetConnectionProfile(ctx context.Context, req 
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).GetConnectionProfile[0:len((*c.CallOptions).GetConnectionProfile):len((*c.CallOptions).GetConnectionProfile)], opts...)
 	var resp *clouddmspb.ConnectionProfile
@@ -796,6 +811,7 @@ func (c *dataMigrationGRPCClient) CreateConnectionProfile(ctx context.Context, r
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).CreateConnectionProfile[0:len((*c.CallOptions).CreateConnectionProfile):len((*c.CallOptions).CreateConnectionProfile)], opts...)
 	var resp *longrunningpb.Operation
@@ -819,6 +835,7 @@ func (c *dataMigrationGRPCClient) UpdateConnectionProfile(ctx context.Context, r
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "connection_profile.name", url.QueryEscape(req.GetConnectionProfile().GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).UpdateConnectionProfile[0:len((*c.CallOptions).UpdateConnectionProfile):len((*c.CallOptions).UpdateConnectionProfile)], opts...)
 	var resp *longrunningpb.Operation
@@ -842,6 +859,7 @@ func (c *dataMigrationGRPCClient) DeleteConnectionProfile(ctx context.Context, r
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).DeleteConnectionProfile[0:len((*c.CallOptions).DeleteConnectionProfile):len((*c.CallOptions).DeleteConnectionProfile)], opts...)
 	var resp *longrunningpb.Operation

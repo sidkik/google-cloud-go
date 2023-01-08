@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,13 +23,13 @@ import (
 	"net/url"
 	"time"
 
+	loggingpb "cloud.google.com/go/logging/apiv2/loggingpb"
 	gax "github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/api/option/internaloption"
 	gtransport "google.golang.org/api/transport/grpc"
 	monitoredrespb "google.golang.org/genproto/googleapis/api/monitoredres"
-	loggingpb "google.golang.org/genproto/googleapis/logging/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -55,7 +55,6 @@ func defaultGRPCClientOptions() []option.ClientOption {
 		internaloption.WithDefaultAudience("https://logging.googleapis.com/"),
 		internaloption.WithDefaultScopes(DefaultAuthScopes()...),
 		internaloption.EnableJwtWithScope(),
-		option.WithGRPCDialOption(grpc.WithDisableServiceConfig()),
 		option.WithGRPCDialOption(grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(math.MaxInt32))),
 	}
@@ -144,7 +143,7 @@ func defaultCallOptions() *CallOptions {
 	}
 }
 
-// internalClient is an interface that defines the methods availaible from Cloud Logging API.
+// internalClient is an interface that defines the methods available from Cloud Logging API.
 type internalClient interface {
 	Close() error
 	setGoogleClientInfo(...string)
@@ -186,15 +185,16 @@ func (c *Client) setGoogleClientInfo(keyval ...string) {
 
 // Connection returns a connection to the API service.
 //
-// Deprecated.
+// Deprecated: Connections are now pooled so this method does not always
+// return the same resource.
 func (c *Client) Connection() *grpc.ClientConn {
 	return c.internalClient.Connection()
 }
 
-// DeleteLog deletes all the log entries in a log. The log reappears if it receives new
-// entries. Log entries written shortly before the delete operation might not
-// be deleted. Entries received after the delete operation with a timestamp
-// before the operation will be deleted.
+// DeleteLog deletes all the log entries in a log for the _Default Log Bucket. The log
+// reappears if it receives new entries. Log entries written shortly before
+// the delete operation might not be deleted. Entries received after the
+// delete operation with a timestamp before the operation will be deleted.
 func (c *Client) DeleteLog(ctx context.Context, req *loggingpb.DeleteLogRequest, opts ...gax.CallOption) error {
 	return c.internalClient.DeleteLog(ctx, req, opts...)
 }
@@ -295,7 +295,8 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error
 
 // Connection returns a connection to the API service.
 //
-// Deprecated.
+// Deprecated: Connections are now pooled so this method does not always
+// return the same resource.
 func (c *gRPCClient) Connection() *grpc.ClientConn {
 	return c.connPool.Conn()
 }
@@ -305,7 +306,7 @@ func (c *gRPCClient) Connection() *grpc.ClientConn {
 // use by Google-written clients.
 func (c *gRPCClient) setGoogleClientInfo(keyval ...string) {
 	kv := append([]string{"gl-go", versionGo()}, keyval...)
-	kv = append(kv, "gapic", versionClient, "gax", gax.Version, "grpc", grpc.Version)
+	kv = append(kv, "gapic", getVersionClient(), "gax", gax.Version, "grpc", grpc.Version)
 	c.xGoogMetadata = metadata.Pairs("x-goog-api-client", gax.XGoogHeader(kv...))
 }
 
@@ -322,6 +323,7 @@ func (c *gRPCClient) DeleteLog(ctx context.Context, req *loggingpb.DeleteLogRequ
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "log_name", url.QueryEscape(req.GetLogName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).DeleteLog[0:len((*c.CallOptions).DeleteLog):len((*c.CallOptions).DeleteLog)], opts...)
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
@@ -440,6 +442,7 @@ func (c *gRPCClient) ListMonitoredResourceDescriptors(ctx context.Context, req *
 
 func (c *gRPCClient) ListLogs(ctx context.Context, req *loggingpb.ListLogsRequest, opts ...gax.CallOption) *StringIterator {
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).ListLogs[0:len((*c.CallOptions).ListLogs):len((*c.CallOptions).ListLogs)], opts...)
 	it := &StringIterator{}

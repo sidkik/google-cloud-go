@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,12 +20,17 @@ import (
 	"context"
 
 	compute "cloud.google.com/go/compute/apiv1"
+	computepb "cloud.google.com/go/compute/apiv1/computepb"
 	"google.golang.org/api/iterator"
-	computepb "google.golang.org/genproto/googleapis/cloud/compute/v1"
 )
 
 func ExampleNewSubnetworksRESTClient() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewSubnetworksRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -38,6 +43,11 @@ func ExampleNewSubnetworksRESTClient() {
 
 func ExampleSubnetworksClient_AggregatedList() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewSubnetworksRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -46,7 +56,7 @@ func ExampleSubnetworksClient_AggregatedList() {
 
 	req := &computepb.AggregatedListSubnetworksRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#AggregatedListSubnetworksRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#AggregatedListSubnetworksRequest.
 	}
 	it := c.AggregatedList(ctx, req)
 	for {
@@ -64,6 +74,11 @@ func ExampleSubnetworksClient_AggregatedList() {
 
 func ExampleSubnetworksClient_Delete() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewSubnetworksRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -72,18 +87,26 @@ func ExampleSubnetworksClient_Delete() {
 
 	req := &computepb.DeleteSubnetworkRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#DeleteSubnetworkRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#DeleteSubnetworkRequest.
 	}
-	resp, err := c.Delete(ctx, req)
+	op, err := c.Delete(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleSubnetworksClient_ExpandIpCidrRange() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewSubnetworksRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -92,18 +115,26 @@ func ExampleSubnetworksClient_ExpandIpCidrRange() {
 
 	req := &computepb.ExpandIpCidrRangeSubnetworkRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#ExpandIpCidrRangeSubnetworkRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#ExpandIpCidrRangeSubnetworkRequest.
 	}
-	resp, err := c.ExpandIpCidrRange(ctx, req)
+	op, err := c.ExpandIpCidrRange(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleSubnetworksClient_Get() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewSubnetworksRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -112,7 +143,7 @@ func ExampleSubnetworksClient_Get() {
 
 	req := &computepb.GetSubnetworkRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#GetSubnetworkRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#GetSubnetworkRequest.
 	}
 	resp, err := c.Get(ctx, req)
 	if err != nil {
@@ -124,6 +155,11 @@ func ExampleSubnetworksClient_Get() {
 
 func ExampleSubnetworksClient_GetIamPolicy() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewSubnetworksRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -132,7 +168,7 @@ func ExampleSubnetworksClient_GetIamPolicy() {
 
 	req := &computepb.GetIamPolicySubnetworkRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#GetIamPolicySubnetworkRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#GetIamPolicySubnetworkRequest.
 	}
 	resp, err := c.GetIamPolicy(ctx, req)
 	if err != nil {
@@ -144,6 +180,11 @@ func ExampleSubnetworksClient_GetIamPolicy() {
 
 func ExampleSubnetworksClient_Insert() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewSubnetworksRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -152,18 +193,26 @@ func ExampleSubnetworksClient_Insert() {
 
 	req := &computepb.InsertSubnetworkRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#InsertSubnetworkRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#InsertSubnetworkRequest.
 	}
-	resp, err := c.Insert(ctx, req)
+	op, err := c.Insert(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleSubnetworksClient_List() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewSubnetworksRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -172,7 +221,7 @@ func ExampleSubnetworksClient_List() {
 
 	req := &computepb.ListSubnetworksRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#ListSubnetworksRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#ListSubnetworksRequest.
 	}
 	it := c.List(ctx, req)
 	for {
@@ -190,6 +239,11 @@ func ExampleSubnetworksClient_List() {
 
 func ExampleSubnetworksClient_ListUsable() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewSubnetworksRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -198,7 +252,7 @@ func ExampleSubnetworksClient_ListUsable() {
 
 	req := &computepb.ListUsableSubnetworksRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#ListUsableSubnetworksRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#ListUsableSubnetworksRequest.
 	}
 	it := c.ListUsable(ctx, req)
 	for {
@@ -216,6 +270,11 @@ func ExampleSubnetworksClient_ListUsable() {
 
 func ExampleSubnetworksClient_Patch() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewSubnetworksRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -224,18 +283,26 @@ func ExampleSubnetworksClient_Patch() {
 
 	req := &computepb.PatchSubnetworkRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#PatchSubnetworkRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#PatchSubnetworkRequest.
 	}
-	resp, err := c.Patch(ctx, req)
+	op, err := c.Patch(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleSubnetworksClient_SetIamPolicy() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewSubnetworksRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -244,7 +311,7 @@ func ExampleSubnetworksClient_SetIamPolicy() {
 
 	req := &computepb.SetIamPolicySubnetworkRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#SetIamPolicySubnetworkRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#SetIamPolicySubnetworkRequest.
 	}
 	resp, err := c.SetIamPolicy(ctx, req)
 	if err != nil {
@@ -256,6 +323,11 @@ func ExampleSubnetworksClient_SetIamPolicy() {
 
 func ExampleSubnetworksClient_SetPrivateIpGoogleAccess() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewSubnetworksRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -264,18 +336,26 @@ func ExampleSubnetworksClient_SetPrivateIpGoogleAccess() {
 
 	req := &computepb.SetPrivateIpGoogleAccessSubnetworkRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#SetPrivateIpGoogleAccessSubnetworkRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#SetPrivateIpGoogleAccessSubnetworkRequest.
 	}
-	resp, err := c.SetPrivateIpGoogleAccess(ctx, req)
+	op, err := c.SetPrivateIpGoogleAccess(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleSubnetworksClient_TestIamPermissions() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewSubnetworksRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -284,7 +364,7 @@ func ExampleSubnetworksClient_TestIamPermissions() {
 
 	req := &computepb.TestIamPermissionsSubnetworkRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#TestIamPermissionsSubnetworkRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#TestIamPermissionsSubnetworkRequest.
 	}
 	resp, err := c.TestIamPermissions(ctx, req)
 	if err != nil {

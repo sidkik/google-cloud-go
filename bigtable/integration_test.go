@@ -42,12 +42,9 @@ import (
 	gax "github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/iterator"
 	btapb "google.golang.org/genproto/googleapis/bigtable/admin/v2"
-	v1 "google.golang.org/genproto/googleapis/iam/v1"
-	longrunning "google.golang.org/genproto/googleapis/longrunning"
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 const (
@@ -706,7 +703,8 @@ func TestIntegration_LargeReadsWritesAndScans(t *testing.T) {
 	}
 	defer cleanup()
 
-	if err := adminClient.CreateColumnFamily(ctx, tableName, "ts"); err != nil {
+	ts := uid.NewSpace("ts", &uid.Options{Short: true}).New()
+	if err := adminClient.CreateColumnFamily(ctx, tableName, ts); err != nil {
 		t.Fatalf("Creating column family: %v", err)
 	}
 
@@ -714,7 +712,7 @@ func TestIntegration_LargeReadsWritesAndScans(t *testing.T) {
 	nonsense := []byte("lorem ipsum dolor sit amet, ")
 	fill(bigBytes, nonsense)
 	mut := NewMutation()
-	mut.Set("ts", "col", 1000, bigBytes)
+	mut.Set(ts, "col", 1000, bigBytes)
 	if err := table.Apply(ctx, "bigrow", mut); err != nil {
 		t.Fatalf("Big write: %v", err)
 	}
@@ -724,8 +722,8 @@ func TestIntegration_LargeReadsWritesAndScans(t *testing.T) {
 		t.Fatalf("Big read: %v", err)
 	}
 	verifyDirectPathRemoteAddress(testEnv, t)
-	wantRow := Row{"ts": []ReadItem{
-		{Row: "bigrow", Column: "ts:col", Timestamp: 1000, Value: bigBytes},
+	wantRow := Row{ts: []ReadItem{
+		{Row: "bigrow", Column: fmt.Sprintf("%s:col", ts), Timestamp: 1000, Value: bigBytes},
 	}}
 	if !testutil.Equal(r, wantRow) {
 		t.Fatalf("Big read returned incorrect bytes: %v", r)
@@ -738,7 +736,7 @@ func TestIntegration_LargeReadsWritesAndScans(t *testing.T) {
 	sem := make(chan int, 50) // do up to 50 mutations at a time.
 	for i := 0; i < 1000; i++ {
 		mut := NewMutation()
-		mut.Set("ts", "big-scan", 1000, medBytes)
+		mut.Set(ts, "big-scan", 1000, medBytes)
 		row := fmt.Sprintf("row-%d", i)
 		wg.Add(1)
 		go func() {
@@ -784,7 +782,8 @@ func TestIntegration_LargeReadsWritesAndScans(t *testing.T) {
 	}
 
 	// Test bulk mutations
-	if err := adminClient.CreateColumnFamily(ctx, tableName, "bulk"); err != nil {
+	bulk := uid.NewSpace("bulk", &uid.Options{Short: true}).New()
+	if err := adminClient.CreateColumnFamily(ctx, tableName, bulk); err != nil {
 		t.Fatalf("Creating column family: %v", err)
 	}
 	bulkData := map[string][]string{
@@ -797,7 +796,7 @@ func TestIntegration_LargeReadsWritesAndScans(t *testing.T) {
 	for row, ss := range bulkData {
 		mut := NewMutation()
 		for _, name := range ss {
-			mut.Set("bulk", name, 1000, []byte("1"))
+			mut.Set(bulk, name, 1000, []byte("1"))
 		}
 		rowKeys = append(rowKeys, row)
 		muts = append(muts, mut)
@@ -820,9 +819,10 @@ func TestIntegration_LargeReadsWritesAndScans(t *testing.T) {
 		verifyDirectPathRemoteAddress(testEnv, t)
 		var wantItems []ReadItem
 		for _, val := range ss {
-			wantItems = append(wantItems, ReadItem{Row: rowKey, Column: "bulk:" + val, Timestamp: 1000, Value: []byte("1")})
+			c := fmt.Sprintf("%s:%s", bulk, val)
+			wantItems = append(wantItems, ReadItem{Row: rowKey, Column: c, Timestamp: 1000, Value: []byte("1")})
 		}
-		wantRow := Row{"bulk": wantItems}
+		wantRow := Row{bulk: wantItems}
 		if !testutil.Equal(row, wantRow) {
 			t.Fatalf("Read row mismatch.\n got %#v\nwant %#v", row, wantRow)
 		}
@@ -1101,6 +1101,317 @@ func TestIntegration_Read(t *testing.T) {
 	}
 }
 
+func TestIntegration_FullReadStats(t *testing.T) {
+	ctx := context.Background()
+	testEnv, _, _, table, _, cleanup, err := setupIntegration(ctx, t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+
+	// Insert some data.
+	initialData := map[string][]string{
+		"wmckinley":   {"tjefferson"},
+		"gwashington": {"j§adams"},
+		"tjefferson":  {"gwashington", "j§adams", "wmckinley"},
+		"j§adams":     {"gwashington", "tjefferson"},
+	}
+	for row, ss := range initialData {
+		mut := NewMutation()
+		for _, name := range ss {
+			mut.Set("follows", name, 1000, []byte("1"))
+		}
+		if err := table.Apply(ctx, row, mut); err != nil {
+			t.Fatalf("Mutating row %q: %v", row, err)
+		}
+		verifyDirectPathRemoteAddress(testEnv, t)
+	}
+
+	for _, test := range []struct {
+		desc   string
+		rr     RowSet
+		filter Filter     // may be nil
+		limit  ReadOption // may be nil
+
+		// We do the read and grab all the stats.
+		cellsReturnedCount int64
+		rowsReturnedCount  int64
+	}{
+		{
+			desc:               "read all, unfiltered",
+			rr:                 RowRange{},
+			cellsReturnedCount: 7,
+			rowsReturnedCount:  4,
+		},
+		{
+			desc:               "read with InfiniteRange, unfiltered",
+			rr:                 InfiniteRange("tjefferson"),
+			cellsReturnedCount: 4,
+			rowsReturnedCount:  2,
+		},
+		{
+			desc:               "read with NewRange, unfiltered",
+			rr:                 NewRange("gargamel", "hubbard"),
+			cellsReturnedCount: 1,
+			rowsReturnedCount:  1,
+		},
+		{
+			desc:               "read with NewRange, no results",
+			rr:                 NewRange("zany", "zebra"), // no matches
+			cellsReturnedCount: 0,
+			rowsReturnedCount:  0,
+		},
+		{
+			desc:               "read with PrefixRange, unfiltered",
+			rr:                 PrefixRange("j§ad"),
+			cellsReturnedCount: 2,
+			rowsReturnedCount:  1,
+		},
+		{
+			desc:               "read with SingleRow, unfiltered",
+			rr:                 SingleRow("wmckinley"),
+			cellsReturnedCount: 1,
+			rowsReturnedCount:  1,
+		},
+		{
+			desc:               "read all, with ColumnFilter",
+			rr:                 RowRange{},
+			filter:             ColumnFilter(".*j.*"), // matches "j§adams" and "tjefferson"
+			cellsReturnedCount: 4,
+			rowsReturnedCount:  4,
+		},
+		{
+			desc:               "read all, with ColumnFilter, prefix",
+			rr:                 RowRange{},
+			filter:             ColumnFilter("j"), // no matches
+			cellsReturnedCount: 0,
+			rowsReturnedCount:  0,
+		},
+		{
+			desc:               "read range, with ColumnRangeFilter",
+			rr:                 RowRange{},
+			filter:             ColumnRangeFilter("follows", "h", "k"),
+			cellsReturnedCount: 2,
+			rowsReturnedCount:  2,
+		},
+		{
+			desc:               "read range from empty, with ColumnRangeFilter",
+			rr:                 RowRange{},
+			filter:             ColumnRangeFilter("follows", "", "u"),
+			cellsReturnedCount: 6,
+			rowsReturnedCount:  4,
+		},
+		{
+			desc:               "read range from start to empty, with ColumnRangeFilter",
+			rr:                 RowRange{},
+			filter:             ColumnRangeFilter("follows", "h", ""),
+			cellsReturnedCount: 5,
+			rowsReturnedCount:  4,
+		},
+		{
+			desc:               "read with RowKeyFilter",
+			rr:                 RowRange{},
+			filter:             RowKeyFilter(".*wash.*"),
+			cellsReturnedCount: 1,
+			rowsReturnedCount:  1,
+		},
+		{
+			desc:               "read with RowKeyFilter unicode",
+			rr:                 RowRange{},
+			filter:             RowKeyFilter(".*j§.*"),
+			cellsReturnedCount: 2,
+			rowsReturnedCount:  1,
+		},
+		{
+			desc:               "read with RowKeyFilter escaped",
+			rr:                 RowRange{},
+			filter:             RowKeyFilter(`.*j\xC2\xA7.*`),
+			cellsReturnedCount: 2,
+			rowsReturnedCount:  1,
+		},
+		{
+			desc:               "read with RowKeyFilter, prefix",
+			rr:                 RowRange{},
+			filter:             RowKeyFilter("gwash"),
+			cellsReturnedCount: 0,
+			rowsReturnedCount:  0,
+		},
+		{
+			desc:               "read with RowKeyFilter, no matches",
+			rr:                 RowRange{},
+			filter:             RowKeyFilter(".*xxx.*"),
+			cellsReturnedCount: 0,
+			rowsReturnedCount:  0,
+		},
+		{
+			desc:               "read with FamilyFilter, no matches",
+			rr:                 RowRange{},
+			filter:             FamilyFilter(".*xxx.*"),
+			cellsReturnedCount: 0,
+			rowsReturnedCount:  0,
+		},
+		{
+			desc:               "read with ColumnFilter + row limit",
+			rr:                 RowRange{},
+			filter:             ColumnFilter(".*j.*"), // matches "j§adams" and "tjefferson"
+			limit:              LimitRows(2),
+			cellsReturnedCount: 2,
+			rowsReturnedCount:  2,
+		},
+		{
+			desc:               "apply labels to the result rows",
+			rr:                 RowRange{},
+			filter:             LabelFilter("test-label"),
+			limit:              LimitRows(2),
+			cellsReturnedCount: 3,
+			rowsReturnedCount:  2,
+		},
+		{
+			desc:               "read all, strip values",
+			rr:                 RowRange{},
+			filter:             StripValueFilter(),
+			cellsReturnedCount: 7,
+			rowsReturnedCount:  4,
+		},
+		{
+			desc:               "read with ColumnFilter + row limit + strip values",
+			rr:                 RowRange{},
+			filter:             ChainFilters(ColumnFilter(".*j.*"), StripValueFilter()), // matches "j§adams" and "tjefferson"
+			limit:              LimitRows(2),
+			cellsReturnedCount: 2,
+			rowsReturnedCount:  2,
+		},
+		{
+			desc:               "read with condition, strip values on true",
+			rr:                 RowRange{},
+			filter:             ConditionFilter(ColumnFilter(".*j.*"), StripValueFilter(), nil),
+			cellsReturnedCount: 7,
+			rowsReturnedCount:  4,
+		},
+		{
+			desc:               "read with condition, strip values on false",
+			rr:                 RowRange{},
+			filter:             ConditionFilter(ColumnFilter(".*xxx.*"), nil, StripValueFilter()),
+			cellsReturnedCount: 7,
+			rowsReturnedCount:  4,
+		},
+		{
+			desc:               "read with ValueRangeFilter + row limit",
+			rr:                 RowRange{},
+			filter:             ValueRangeFilter([]byte("1"), []byte("5")), // matches our value of "1"
+			limit:              LimitRows(2),
+			cellsReturnedCount: 3,
+			rowsReturnedCount:  2,
+		},
+		{
+			desc:               "read with ValueRangeFilter, no match on exclusive end",
+			rr:                 RowRange{},
+			filter:             ValueRangeFilter([]byte("0"), []byte("1")), // no match
+			cellsReturnedCount: 0,
+			rowsReturnedCount:  0,
+		},
+		{
+			desc:               "read with ValueRangeFilter, no matches",
+			rr:                 RowRange{},
+			filter:             ValueRangeFilter([]byte("3"), []byte("5")), // matches nothing
+			cellsReturnedCount: 0,
+			rowsReturnedCount:  0,
+		},
+		{
+			desc:               "read with InterleaveFilter, no matches on all filters",
+			rr:                 RowRange{},
+			filter:             InterleaveFilters(ColumnFilter(".*x.*"), ColumnFilter(".*z.*")),
+			cellsReturnedCount: 0,
+			rowsReturnedCount:  0,
+		},
+		{
+			desc:               "read with InterleaveFilter, no duplicate cells",
+			rr:                 RowRange{},
+			filter:             InterleaveFilters(ColumnFilter(".*g.*"), ColumnFilter(".*j.*")),
+			cellsReturnedCount: 6,
+			rowsReturnedCount:  4,
+		},
+		{
+			desc:               "read with InterleaveFilter, with duplicate cells",
+			rr:                 RowRange{},
+			filter:             InterleaveFilters(ColumnFilter(".*g.*"), ColumnFilter(".*g.*")),
+			cellsReturnedCount: 4,
+			rowsReturnedCount:  2,
+		},
+		{
+			desc:               "read with a RowRangeList and no filter",
+			rr:                 RowRangeList{NewRange("gargamel", "hubbard"), InfiniteRange("wmckinley")},
+			cellsReturnedCount: 2,
+			rowsReturnedCount:  2,
+		},
+		{
+			desc:               "chain that excludes rows and matches nothing, in a condition",
+			rr:                 RowRange{},
+			filter:             ConditionFilter(ChainFilters(ColumnFilter(".*j.*"), ColumnFilter(".*mckinley.*")), StripValueFilter(), nil),
+			cellsReturnedCount: 0,
+			rowsReturnedCount:  0,
+		},
+		{
+			desc:               "chain that ends with an interleave that has no match. covers #804",
+			rr:                 RowRange{},
+			filter:             ConditionFilter(ChainFilters(ColumnFilter(".*j.*"), InterleaveFilters(ColumnFilter(".*x.*"), ColumnFilter(".*z.*"))), StripValueFilter(), nil),
+			cellsReturnedCount: 0,
+			rowsReturnedCount:  0,
+		},
+	} {
+		t.Run(test.desc, func(t *testing.T) {
+			var opts []ReadOption
+			if test.filter != nil {
+				opts = append(opts, RowFilter(test.filter))
+			}
+			if test.limit != nil {
+				opts = append(opts, test.limit)
+			}
+			// Define a callback for validating request stats.
+			callbackInvoked := false
+			statsValidator := WithFullReadStats(
+				func(stats *FullReadStats) {
+					if callbackInvoked {
+						t.Fatalf("The request stats callback was invoked more than once. It should be invoked exactly once.")
+					}
+					readStats := stats.ReadIterationStats
+					callbackInvoked = true
+					if readStats.CellsReturnedCount != test.cellsReturnedCount {
+						t.Errorf("CellsReturnedCount did not match. got: %d, want: %d",
+							readStats.CellsReturnedCount, test.cellsReturnedCount)
+					}
+					if readStats.RowsReturnedCount != test.rowsReturnedCount {
+						t.Errorf("RowsReturnedCount did not match. got: %d, want: %d",
+							readStats.RowsReturnedCount, test.rowsReturnedCount)
+					}
+					// We use lenient checks for CellsSeenCount and RowsSeenCount. Exact checks would be brittle.
+					// Note that the emulator and prod sometimes yield different values:
+					// - Sometimes prod scans fewer cells due to optimizations that allow prod to skip cells.
+					// - Sometimes prod scans more cells due to to filters that must rescan cells.
+					// Similar issues apply for RowsSeenCount.
+					if got, want := readStats.CellsSeenCount, readStats.CellsReturnedCount; got < want {
+						t.Errorf("CellsSeenCount should be greater than or equal to CellsReturnedCount. got: %d < want: %d",
+							got, want)
+					}
+					if got, want := readStats.RowsSeenCount, readStats.RowsReturnedCount; got < want {
+						t.Errorf("RowsSeenCount should be greater than or equal to RowsReturnedCount. got: %d < want: %d",
+							got, want)
+					}
+				})
+			opts = append(opts, statsValidator)
+
+			err := table.ReadRows(ctx, test.rr, func(r Row) bool { return true }, opts...)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !callbackInvoked {
+				t.Fatalf("The request stats callback was not invoked. It should be invoked exactly once.")
+			}
+			verifyDirectPathRemoteAddress(testEnv, t)
+		})
+	}
+}
+
 func TestIntegration_SampleRowKeys(t *testing.T) {
 	ctx := context.Background()
 	testEnv, client, adminClient, _, _, cleanup, err := setupIntegration(ctx, t)
@@ -1115,7 +1426,8 @@ func TestIntegration_SampleRowKeys(t *testing.T) {
 	}
 	defer adminClient.DeleteTable(ctx, presplitTable)
 
-	if err := adminClient.CreateColumnFamily(ctx, presplitTable, "follows"); err != nil {
+	cf := uid.NewSpace("follows", &uid.Options{Short: true}).New()
+	if err := adminClient.CreateColumnFamily(ctx, presplitTable, cf); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1131,7 +1443,7 @@ func TestIntegration_SampleRowKeys(t *testing.T) {
 	for row, ss := range initialData {
 		mut := NewMutation()
 		for _, name := range ss {
-			mut.Set("follows", name, 1000, []byte("1"))
+			mut.Set(cf, name, 1000, []byte("1"))
 		}
 		if err := table.Apply(ctx, row, mut); err != nil {
 			t.Fatalf("Mutating row %q: %v", row, err)
@@ -1144,6 +1456,82 @@ func TestIntegration_SampleRowKeys(t *testing.T) {
 	}
 	if len(sampleKeys) == 0 {
 		t.Error("SampleRowKeys length 0")
+	}
+}
+
+// testing if deletionProtection works properly e.g. when set to Protected, column family and table cannot be deleted;
+// then update the deletionProtection to Unprotected and check if deleting the column family and table works properly.
+func TestIntegration_TableDeletionProtection(t *testing.T) {
+	testEnv, err := NewIntegrationEnv()
+	if err != nil {
+		t.Fatalf("IntegrationEnv: %v", err)
+	}
+	defer testEnv.Close()
+
+	timeout := 2 * time.Second
+	if testEnv.Config().UseProd {
+		timeout = 5 * time.Minute
+	}
+	ctx, _ := context.WithTimeout(context.Background(), timeout)
+
+	adminClient, err := testEnv.NewAdminClient()
+	if err != nil {
+		t.Fatalf("NewAdminClient: %v", err)
+	}
+	defer adminClient.Close()
+
+	tableConf := TableConf{
+		TableID: myTableName,
+		Families: map[string]GCPolicy{
+			"fam1": MaxVersionsPolicy(1),
+			"fam2": MaxVersionsPolicy(2),
+		},
+		DeletionProtection: Protected,
+	}
+
+	if err := adminClient.CreateTableFromConf(ctx, &tableConf); err != nil {
+		t.Fatalf("Create table from config: %v", err)
+	}
+
+	table, err := adminClient.TableInfo(ctx, myTableName)
+	if err != nil {
+		t.Fatalf("Getting table info: %v", err)
+	}
+
+	if table.DeletionProtection != Protected {
+		t.Errorf("Expect table deletion protection to be enabled for table: %v", myTableName)
+	}
+
+	// Check if the deletion protection works properly
+	if err = adminClient.DeleteColumnFamily(ctx, tableConf.TableID, "fam1"); err == nil {
+		t.Errorf("We shouldn't be able to delete the column family fam1 when the deletion protection is enabled for table %v", myTableName)
+	}
+	if err = adminClient.DeleteTable(ctx, tableConf.TableID); err == nil {
+		t.Errorf("We shouldn't be able to delete the table when the deletion protection is enabled for table %v", myTableName)
+	}
+
+	updateTableConf := UpdateTableConf{
+		tableID:            myTableName,
+		deletionProtection: Unprotected,
+	}
+	if err := adminClient.updateTableWithConf(ctx, &updateTableConf); err != nil {
+		t.Fatalf("Update table from config: %v", err)
+	}
+
+	table, err = adminClient.TableInfo(ctx, myTableName)
+	if err != nil {
+		t.Fatalf("Getting table info: %v", err)
+	}
+
+	if table.DeletionProtection != Unprotected {
+		t.Errorf("Expect table deletion protection to be disabled for table: %v", myTableName)
+	}
+
+	if err := adminClient.DeleteColumnFamily(ctx, tableConf.TableID, "fam1"); err != nil {
+		t.Errorf("Delete column family does not work properly while deletion protection bit is disabled: %v", err)
+	}
+	if err = adminClient.DeleteTable(ctx, tableConf.TableID); err != nil {
+		t.Errorf("Deleting the table does not work properly while deletion protection bit is disabled: %v", err)
 	}
 }
 
@@ -1403,8 +1791,12 @@ func TestIntegration_BackupIAM(t *testing.T) {
 	if err := adminClient.CreateTable(ctx, table); err != nil {
 		t.Fatalf("Creating table: %v", err)
 	}
+
 	// Create backup.
-	backup := "backup"
+	opts := &uid.Options{Sep: '_'}
+	backupUUID := uid.NewSpace("backup", opts)
+	backup := backupUUID.New()
+
 	defer adminClient.DeleteBackup(ctx, cluster, backup)
 	if err = adminClient.CreateBackup(ctx, table, cluster, backup, time.Now().Add(8*time.Hour)); err != nil {
 		t.Fatalf("Creating backup: %v", err)
@@ -1457,7 +1849,7 @@ func TestIntegration_AdminCreateInstance(t *testing.T) {
 		t.Skip("emulator doesn't support instance creation")
 	}
 
-	timeout := 5 * time.Minute
+	timeout := 7 * time.Minute
 	ctx, _ := context.WithTimeout(context.Background(), timeout)
 
 	iAdminClient, err := testEnv.NewInstanceAdminClient()
@@ -1477,9 +1869,13 @@ func TestIntegration_AdminCreateInstance(t *testing.T) {
 		InstanceType: DEVELOPMENT,
 		Labels:       map[string]string{"test-label-key": "test-label-value"},
 	}
-	if err := iAdminClient.CreateInstance(ctx, conf); err != nil {
-		t.Fatalf("CreateInstance: %v", err)
-	}
+
+	// CreateInstance can be flaky; retry 3 times before marking as failing.
+	testutil.Retry(t, 3, 5*time.Second, func(r *testutil.R) {
+		if err := iAdminClient.CreateInstance(ctx, conf); err != nil {
+			t.Fatalf("CreateInstance: %v", err)
+		}
+	})
 
 	defer iAdminClient.DeleteInstance(ctx, instanceToCreate)
 
@@ -1738,7 +2134,7 @@ func TestIntegration_AdminUpdateInstanceLabels(t *testing.T) {
 	}
 
 	// Create an instance admin client
-	timeout := 5 * time.Minute
+	timeout := 7 * time.Minute
 	ctx, _ := context.WithTimeout(context.Background(), timeout)
 	iAdminClient, err := testEnv.NewInstanceAdminClient()
 	if err != nil {
@@ -1754,9 +2150,12 @@ func TestIntegration_AdminUpdateInstanceLabels(t *testing.T) {
 		InstanceType: DEVELOPMENT,
 		Zone:         instanceToCreateZone,
 	}
-	if err := iAdminClient.CreateInstance(ctx, conf); err != nil {
-		t.Fatalf("CreateInstance: %v", err)
-	}
+
+	testutil.Retry(t, 3, 5*time.Second, func(R *testutil.R) {
+		if err := iAdminClient.CreateInstance(ctx, conf); err != nil {
+			t.Fatalf("CreateInstance: %v", err)
+		}
+	})
 	defer iAdminClient.DeleteInstance(ctx, instanceToCreate)
 
 	// Check the created test instances
@@ -1985,10 +2384,126 @@ func TestIntegration_AdminUpdateInstanceAndSyncClusters(t *testing.T) {
 	}
 }
 
+func TestIntegration_Autoscaling(t *testing.T) {
+	if instanceToCreate == "" {
+		t.Skip("instanceToCreate not set, skipping instance update testing")
+	}
+	instanceToCreate += "4"
+
+	testEnv, err := NewIntegrationEnv()
+	if err != nil {
+		t.Fatalf("IntegrationEnv: %v", err)
+	}
+	defer testEnv.Close()
+
+	if !testEnv.Config().UseProd {
+		t.Skip("emulator doesn't support instance creation")
+	}
+
+	timeout := 5 * time.Minute
+	ctx, _ := context.WithTimeout(context.Background(), timeout)
+
+	iAdminClient, err := testEnv.NewInstanceAdminClient()
+	if err != nil {
+		t.Fatalf("NewInstanceAdminClient: %v", err)
+	}
+	defer iAdminClient.Close()
+
+	clusterID := instanceToCreate + "-cluster"
+
+	t.Log("creating an instance with autoscaling ON (Min = 3, Max = 4)")
+	conf := &InstanceConf{
+		InstanceId:   instanceToCreate,
+		ClusterId:    clusterID,
+		DisplayName:  "test instance",
+		Zone:         instanceToCreateZone,
+		InstanceType: PRODUCTION,
+		AutoscalingConfig: &AutoscalingConfig{
+			MinNodes:         3,
+			MaxNodes:         4,
+			CPUTargetPercent: 60,
+		},
+	}
+	if err := iAdminClient.CreateInstance(ctx, conf); err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	defer iAdminClient.DeleteInstance(ctx, instanceToCreate)
+
+	cluster, err := iAdminClient.GetCluster(ctx, instanceToCreate, clusterID)
+	if err != nil {
+		t.Fatalf("GetCluster: %v", err)
+	}
+	wantNodes := 3
+	if gotNodes := cluster.ServeNodes; gotNodes != wantNodes {
+		t.Fatalf("want cluster nodes = %v, got = %v", wantNodes, gotNodes)
+	}
+	wantMin := 3
+	if gotMin := cluster.AutoscalingConfig.MinNodes; gotMin != wantMin {
+		t.Fatalf("want cluster autoscaling min = %v, got = %v", wantMin, gotMin)
+	}
+	wantMax := 4
+	if gotMax := cluster.AutoscalingConfig.MaxNodes; gotMax != wantMax {
+		t.Fatalf("want cluster autoscaling max = %v, got = %v", wantMax, gotMax)
+	}
+	wantCPU := 60
+	if gotCPU := cluster.AutoscalingConfig.CPUTargetPercent; gotCPU != wantCPU {
+		t.Fatalf("want cluster autoscaling CPU target = %v, got = %v", wantCPU, gotCPU)
+	}
+
+	serveNodes := 1
+	t.Logf("setting autoscaling OFF and setting serve nodes to %v", serveNodes)
+	err = iAdminClient.UpdateCluster(ctx, instanceToCreate, clusterID, int32(serveNodes))
+	if err != nil {
+		t.Fatalf("UpdateCluster: %v", err)
+	}
+	cluster, err = iAdminClient.GetCluster(ctx, instanceToCreate, clusterID)
+	if err != nil {
+		t.Fatalf("GetCluster: %v", err)
+	}
+	wantNodes = 1
+	if gotNodes := cluster.ServeNodes; gotNodes != wantNodes {
+		t.Fatalf("want cluster nodes = %v, got = %v", wantNodes, gotNodes)
+	}
+	if gotAsc := cluster.AutoscalingConfig; gotAsc != nil {
+		t.Fatalf("want cluster autoscaling = nil, got = %v", gotAsc)
+	}
+
+	ac := AutoscalingConfig{
+		MinNodes:         3,
+		MaxNodes:         4,
+		CPUTargetPercent: 80,
+	}
+	t.Logf("setting autoscaling ON (Min = %v, Max = %v)", ac.MinNodes, ac.MaxNodes)
+	err = iAdminClient.SetAutoscaling(ctx, instanceToCreate, clusterID, ac)
+	if err != nil {
+		t.Fatalf("SetAutoscaling: %v", err)
+	}
+	cluster, err = iAdminClient.GetCluster(ctx, instanceToCreate, clusterID)
+	if err != nil {
+		t.Fatalf("GetCluster: %v", err)
+	}
+	wantMin = ac.MinNodes
+	if gotMin := cluster.AutoscalingConfig.MinNodes; gotMin != wantMin {
+		t.Fatalf("want cluster autoscaling min = %v, got = %v", wantMin, gotMin)
+	}
+	wantMax = ac.MaxNodes
+	if gotMax := cluster.AutoscalingConfig.MaxNodes; gotMax != wantMax {
+		t.Fatalf("want cluster autoscaling max = %v, got = %v", wantMax, gotMax)
+	}
+	wantCPU = ac.CPUTargetPercent
+	if gotCPU := cluster.AutoscalingConfig.CPUTargetPercent; gotCPU != wantCPU {
+		t.Fatalf("want cluster autoscaling CPU target = %v, got = %v", wantCPU, gotCPU)
+	}
+
+}
+
 // instanceAdminClientMock is used to test FailedLocations field processing.
 type instanceAdminClientMock struct {
 	Clusters             []*btapb.Cluster
 	UnavailableLocations []string
+	// Imbedding the interface allows test writers to override just the methods
+	// that are interesting for a test and ignore the rest.
+	btapb.BigtableInstanceAdminClient
 }
 
 func (iacm *instanceAdminClientMock) ListClusters(ctx context.Context, req *btapb.ListClustersRequest, opts ...grpc.CallOption) (*btapb.ListClustersResponse, error) {
@@ -1997,78 +2512,6 @@ func (iacm *instanceAdminClientMock) ListClusters(ctx context.Context, req *btap
 		FailedLocations: iacm.UnavailableLocations,
 	}
 	return &res, nil
-}
-
-func (iacm *instanceAdminClientMock) CreateInstance(ctx context.Context, in *btapb.CreateInstanceRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
-	return nil, nil
-}
-
-func (iacm *instanceAdminClientMock) GetInstance(ctx context.Context, in *btapb.GetInstanceRequest, opts ...grpc.CallOption) (*btapb.Instance, error) {
-	return nil, nil
-}
-
-func (iacm *instanceAdminClientMock) ListInstances(ctx context.Context, in *btapb.ListInstancesRequest, opts ...grpc.CallOption) (*btapb.ListInstancesResponse, error) {
-	return nil, nil
-}
-
-func (iacm *instanceAdminClientMock) UpdateInstance(ctx context.Context, in *btapb.Instance, opts ...grpc.CallOption) (*btapb.Instance, error) {
-	return nil, nil
-}
-
-func (iacm *instanceAdminClientMock) PartialUpdateInstance(ctx context.Context, in *btapb.PartialUpdateInstanceRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
-	return nil, nil
-}
-
-func (iacm *instanceAdminClientMock) DeleteInstance(ctx context.Context, in *btapb.DeleteInstanceRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	return nil, nil
-}
-
-func (iacm *instanceAdminClientMock) CreateCluster(ctx context.Context, in *btapb.CreateClusterRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
-	return nil, nil
-}
-
-func (iacm *instanceAdminClientMock) GetCluster(ctx context.Context, in *btapb.GetClusterRequest, opts ...grpc.CallOption) (*btapb.Cluster, error) {
-	return nil, nil
-}
-
-func (iacm *instanceAdminClientMock) UpdateCluster(ctx context.Context, in *btapb.Cluster, opts ...grpc.CallOption) (*longrunning.Operation, error) {
-	return nil, nil
-}
-
-func (iacm *instanceAdminClientMock) DeleteCluster(ctx context.Context, in *btapb.DeleteClusterRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	return nil, nil
-}
-
-func (iacm *instanceAdminClientMock) CreateAppProfile(ctx context.Context, in *btapb.CreateAppProfileRequest, opts ...grpc.CallOption) (*btapb.AppProfile, error) {
-	return nil, nil
-}
-
-func (iacm *instanceAdminClientMock) GetAppProfile(ctx context.Context, in *btapb.GetAppProfileRequest, opts ...grpc.CallOption) (*btapb.AppProfile, error) {
-	return nil, nil
-}
-
-func (iacm *instanceAdminClientMock) ListAppProfiles(ctx context.Context, in *btapb.ListAppProfilesRequest, opts ...grpc.CallOption) (*btapb.ListAppProfilesResponse, error) {
-	return nil, nil
-}
-
-func (iacm *instanceAdminClientMock) UpdateAppProfile(ctx context.Context, in *btapb.UpdateAppProfileRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
-	return nil, nil
-}
-
-func (iacm *instanceAdminClientMock) DeleteAppProfile(ctx context.Context, in *btapb.DeleteAppProfileRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	return nil, nil
-}
-
-func (iacm *instanceAdminClientMock) GetIamPolicy(ctx context.Context, in *v1.GetIamPolicyRequest, opts ...grpc.CallOption) (*v1.Policy, error) {
-	return nil, nil
-}
-
-func (iacm *instanceAdminClientMock) SetIamPolicy(ctx context.Context, in *v1.SetIamPolicyRequest, opts ...grpc.CallOption) (*v1.Policy, error) {
-	return nil, nil
-}
-
-func (iacm *instanceAdminClientMock) TestIamPermissions(ctx context.Context, in *v1.TestIamPermissionsRequest, opts ...grpc.CallOption) (*v1.TestIamPermissionsResponse, error) {
-	return nil, nil
 }
 
 func TestIntegration_InstanceAdminClient_Clusters_WithFailedLocations(t *testing.T) {
@@ -2216,7 +2659,7 @@ func TestIntegration_InstanceAdminClient_AppProfile(t *testing.T) {
 
 	uniqueID := make([]byte, 4)
 	rand.Read(uniqueID)
-	profileID := fmt.Sprintf("app_profile%x", uniqueID)
+	profileID := fmt.Sprintf("app_profile_id%x", uniqueID)
 
 	err = iAdminClient.DeleteAppProfile(ctx, adminClient.instance, profileID)
 
@@ -2447,9 +2890,9 @@ func TestIntegration_AdminBackup(t *testing.T) {
 		t.Fatalf("NewInstanceAdminClient: %v", err)
 	}
 	defer iAdminClient.Close()
-	uniqueID := make([]byte, 4)
-	rand.Read(uniqueID)
-	diffInstance := fmt.Sprintf("%s-d-%x", testEnv.Config().Instance, uniqueID)
+	prefix := "bt-it"
+	diffInstanceId := uid.NewSpace(prefix, &uid.Options{Short: true})
+	diffInstance := diffInstanceId.New()
 	diffCluster := sourceCluster + "-d"
 	conf := &InstanceConf{
 		InstanceId:   diffInstance,
@@ -2462,7 +2905,7 @@ func TestIntegration_AdminBackup(t *testing.T) {
 	defer iAdminClient.DeleteInstance(ctx, diffInstance)
 	// Create different instance to restore table.
 	if err := iAdminClient.CreateInstance(ctx, conf); err != nil {
-		t.Errorf("CreateInstance: %v", err)
+		t.Fatalf("CreateInstance: %v", err)
 	}
 
 	list := func(cluster string) ([]*BackupInfo, error) {
@@ -2487,7 +2930,8 @@ func TestIntegration_AdminBackup(t *testing.T) {
 		t.Fatalf("Failed to generate a unique ID: %v", err)
 	}
 
-	backupName := fmt.Sprintf("mybackup-%x", uniqueID)
+	backupUID := uid.NewSpace("mybackup-", &uid.Options{})
+	backupName := backupUID.New()
 	defer adminClient.DeleteBackup(ctx, sourceCluster, backupName)
 
 	if err = adminClient.CreateBackup(ctx, tblConf.TableID, sourceCluster, backupName, time.Now().Add(8*time.Hour)); err != nil {

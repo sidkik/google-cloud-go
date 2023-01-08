@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/spanner"
+	sppb "cloud.google.com/go/spanner/apiv1/spannerpb"
 	"google.golang.org/api/iterator"
-	sppb "google.golang.org/genproto/googleapis/spanner/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -399,6 +399,30 @@ func ExampleRow_ToStruct() {
 
 	var acct Account
 	if err := row.ToStruct(&acct); err != nil {
+		// TODO: Handle error.
+	}
+	fmt.Println(acct)
+}
+
+func ExampleRow_ToStructLenient() {
+	ctx := context.Background()
+	client, err := spanner.NewClient(ctx, myDB)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	row, err := client.Single().ReadRow(ctx, "Accounts", spanner.Key{"alice"}, []string{"accountID", "name", "balance"})
+	if err != nil {
+		// TODO: Handle error.
+	}
+
+	type Account struct {
+		Name     string
+		Balance  int64
+		NickName string
+	}
+
+	var acct Account
+	if err := row.ToStructLenient(&acct); err != nil {
 		// TODO: Handle error.
 	}
 	fmt.Println(acct)

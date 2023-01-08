@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,12 +20,17 @@ import (
 	"context"
 
 	compute "cloud.google.com/go/compute/apiv1"
+	computepb "cloud.google.com/go/compute/apiv1/computepb"
 	"google.golang.org/api/iterator"
-	computepb "google.golang.org/genproto/googleapis/cloud/compute/v1"
 )
 
 func ExampleNewRegionUrlMapsRESTClient() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewRegionUrlMapsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -38,6 +43,11 @@ func ExampleNewRegionUrlMapsRESTClient() {
 
 func ExampleRegionUrlMapsClient_Delete() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewRegionUrlMapsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -46,18 +56,26 @@ func ExampleRegionUrlMapsClient_Delete() {
 
 	req := &computepb.DeleteRegionUrlMapRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#DeleteRegionUrlMapRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#DeleteRegionUrlMapRequest.
 	}
-	resp, err := c.Delete(ctx, req)
+	op, err := c.Delete(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleRegionUrlMapsClient_Get() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewRegionUrlMapsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -66,7 +84,7 @@ func ExampleRegionUrlMapsClient_Get() {
 
 	req := &computepb.GetRegionUrlMapRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#GetRegionUrlMapRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#GetRegionUrlMapRequest.
 	}
 	resp, err := c.Get(ctx, req)
 	if err != nil {
@@ -78,6 +96,11 @@ func ExampleRegionUrlMapsClient_Get() {
 
 func ExampleRegionUrlMapsClient_Insert() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewRegionUrlMapsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -86,18 +109,26 @@ func ExampleRegionUrlMapsClient_Insert() {
 
 	req := &computepb.InsertRegionUrlMapRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#InsertRegionUrlMapRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#InsertRegionUrlMapRequest.
 	}
-	resp, err := c.Insert(ctx, req)
+	op, err := c.Insert(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleRegionUrlMapsClient_List() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewRegionUrlMapsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -106,7 +137,7 @@ func ExampleRegionUrlMapsClient_List() {
 
 	req := &computepb.ListRegionUrlMapsRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#ListRegionUrlMapsRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#ListRegionUrlMapsRequest.
 	}
 	it := c.List(ctx, req)
 	for {
@@ -124,6 +155,11 @@ func ExampleRegionUrlMapsClient_List() {
 
 func ExampleRegionUrlMapsClient_Patch() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewRegionUrlMapsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -132,18 +168,26 @@ func ExampleRegionUrlMapsClient_Patch() {
 
 	req := &computepb.PatchRegionUrlMapRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#PatchRegionUrlMapRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#PatchRegionUrlMapRequest.
 	}
-	resp, err := c.Patch(ctx, req)
+	op, err := c.Patch(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleRegionUrlMapsClient_Update() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewRegionUrlMapsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -152,18 +196,26 @@ func ExampleRegionUrlMapsClient_Update() {
 
 	req := &computepb.UpdateRegionUrlMapRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#UpdateRegionUrlMapRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#UpdateRegionUrlMapRequest.
 	}
-	resp, err := c.Update(ctx, req)
+	op, err := c.Update(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleRegionUrlMapsClient_Validate() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewRegionUrlMapsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -172,7 +224,7 @@ func ExampleRegionUrlMapsClient_Validate() {
 
 	req := &computepb.ValidateRegionUrlMapRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#ValidateRegionUrlMapRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#ValidateRegionUrlMapRequest.
 	}
 	resp, err := c.Validate(ctx, req)
 	if err != nil {

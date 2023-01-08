@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,13 +20,37 @@ import (
 	"context"
 
 	dialogflow "cloud.google.com/go/dialogflow/apiv2"
+	dialogflowpb "cloud.google.com/go/dialogflow/apiv2/dialogflowpb"
 	"google.golang.org/api/iterator"
-	dialogflowpb "google.golang.org/genproto/googleapis/cloud/dialogflow/v2"
+	locationpb "google.golang.org/genproto/googleapis/cloud/location"
+	longrunningpb "google.golang.org/genproto/googleapis/longrunning"
 )
 
 func ExampleNewSessionEntityTypesClient() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := dialogflow.NewSessionEntityTypesClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	// TODO: Use client.
+	_ = c
+}
+
+func ExampleNewSessionEntityTypesRESTClient() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := dialogflow.NewSessionEntityTypesRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
 	}
@@ -38,6 +62,11 @@ func ExampleNewSessionEntityTypesClient() {
 
 func ExampleSessionEntityTypesClient_ListSessionEntityTypes() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := dialogflow.NewSessionEntityTypesClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -46,7 +75,7 @@ func ExampleSessionEntityTypesClient_ListSessionEntityTypes() {
 
 	req := &dialogflowpb.ListSessionEntityTypesRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/dialogflow/v2#ListSessionEntityTypesRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/dialogflow/apiv2/dialogflowpb#ListSessionEntityTypesRequest.
 	}
 	it := c.ListSessionEntityTypes(ctx, req)
 	for {
@@ -64,6 +93,11 @@ func ExampleSessionEntityTypesClient_ListSessionEntityTypes() {
 
 func ExampleSessionEntityTypesClient_GetSessionEntityType() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := dialogflow.NewSessionEntityTypesClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -72,7 +106,7 @@ func ExampleSessionEntityTypesClient_GetSessionEntityType() {
 
 	req := &dialogflowpb.GetSessionEntityTypeRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/dialogflow/v2#GetSessionEntityTypeRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/dialogflow/apiv2/dialogflowpb#GetSessionEntityTypeRequest.
 	}
 	resp, err := c.GetSessionEntityType(ctx, req)
 	if err != nil {
@@ -84,6 +118,11 @@ func ExampleSessionEntityTypesClient_GetSessionEntityType() {
 
 func ExampleSessionEntityTypesClient_CreateSessionEntityType() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := dialogflow.NewSessionEntityTypesClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -92,7 +131,7 @@ func ExampleSessionEntityTypesClient_CreateSessionEntityType() {
 
 	req := &dialogflowpb.CreateSessionEntityTypeRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/dialogflow/v2#CreateSessionEntityTypeRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/dialogflow/apiv2/dialogflowpb#CreateSessionEntityTypeRequest.
 	}
 	resp, err := c.CreateSessionEntityType(ctx, req)
 	if err != nil {
@@ -104,6 +143,11 @@ func ExampleSessionEntityTypesClient_CreateSessionEntityType() {
 
 func ExampleSessionEntityTypesClient_UpdateSessionEntityType() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := dialogflow.NewSessionEntityTypesClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -112,7 +156,7 @@ func ExampleSessionEntityTypesClient_UpdateSessionEntityType() {
 
 	req := &dialogflowpb.UpdateSessionEntityTypeRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/dialogflow/v2#UpdateSessionEntityTypeRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/dialogflow/apiv2/dialogflowpb#UpdateSessionEntityTypeRequest.
 	}
 	resp, err := c.UpdateSessionEntityType(ctx, req)
 	if err != nil {
@@ -124,6 +168,11 @@ func ExampleSessionEntityTypesClient_UpdateSessionEntityType() {
 
 func ExampleSessionEntityTypesClient_DeleteSessionEntityType() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := dialogflow.NewSessionEntityTypesClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -132,10 +181,145 @@ func ExampleSessionEntityTypesClient_DeleteSessionEntityType() {
 
 	req := &dialogflowpb.DeleteSessionEntityTypeRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/dialogflow/v2#DeleteSessionEntityTypeRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/dialogflow/apiv2/dialogflowpb#DeleteSessionEntityTypeRequest.
 	}
 	err = c.DeleteSessionEntityType(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
+	}
+}
+
+func ExampleSessionEntityTypesClient_GetLocation() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := dialogflow.NewSessionEntityTypesClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &locationpb.GetLocationRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/location#GetLocationRequest.
+	}
+	resp, err := c.GetLocation(ctx, req)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	// TODO: Use resp.
+	_ = resp
+}
+
+func ExampleSessionEntityTypesClient_ListLocations() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := dialogflow.NewSessionEntityTypesClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &locationpb.ListLocationsRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/location#ListLocationsRequest.
+	}
+	it := c.ListLocations(ctx, req)
+	for {
+		resp, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			// TODO: Handle error.
+		}
+		// TODO: Use resp.
+		_ = resp
+	}
+}
+
+func ExampleSessionEntityTypesClient_CancelOperation() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := dialogflow.NewSessionEntityTypesClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &longrunningpb.CancelOperationRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/longrunning#CancelOperationRequest.
+	}
+	err = c.CancelOperation(ctx, req)
+	if err != nil {
+		// TODO: Handle error.
+	}
+}
+
+func ExampleSessionEntityTypesClient_GetOperation() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := dialogflow.NewSessionEntityTypesClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &longrunningpb.GetOperationRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/longrunning#GetOperationRequest.
+	}
+	resp, err := c.GetOperation(ctx, req)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	// TODO: Use resp.
+	_ = resp
+}
+
+func ExampleSessionEntityTypesClient_ListOperations() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := dialogflow.NewSessionEntityTypesClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &longrunningpb.ListOperationsRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/longrunning#ListOperationsRequest.
+	}
+	it := c.ListOperations(ctx, req)
+	for {
+		resp, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			// TODO: Handle error.
+		}
+		// TODO: Use resp.
+		_ = resp
 	}
 }

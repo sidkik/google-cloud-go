@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,13 +20,37 @@ import (
 	"context"
 
 	dialogflow "cloud.google.com/go/dialogflow/apiv2"
+	dialogflowpb "cloud.google.com/go/dialogflow/apiv2/dialogflowpb"
 	"google.golang.org/api/iterator"
-	dialogflowpb "google.golang.org/genproto/googleapis/cloud/dialogflow/v2"
+	locationpb "google.golang.org/genproto/googleapis/cloud/location"
+	longrunningpb "google.golang.org/genproto/googleapis/longrunning"
 )
 
 func ExampleNewDocumentsClient() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := dialogflow.NewDocumentsClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	// TODO: Use client.
+	_ = c
+}
+
+func ExampleNewDocumentsRESTClient() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := dialogflow.NewDocumentsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
 	}
@@ -38,6 +62,11 @@ func ExampleNewDocumentsClient() {
 
 func ExampleDocumentsClient_ListDocuments() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := dialogflow.NewDocumentsClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -46,7 +75,7 @@ func ExampleDocumentsClient_ListDocuments() {
 
 	req := &dialogflowpb.ListDocumentsRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/dialogflow/v2#ListDocumentsRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/dialogflow/apiv2/dialogflowpb#ListDocumentsRequest.
 	}
 	it := c.ListDocuments(ctx, req)
 	for {
@@ -64,6 +93,11 @@ func ExampleDocumentsClient_ListDocuments() {
 
 func ExampleDocumentsClient_GetDocument() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := dialogflow.NewDocumentsClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -72,7 +106,7 @@ func ExampleDocumentsClient_GetDocument() {
 
 	req := &dialogflowpb.GetDocumentRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/dialogflow/v2#GetDocumentRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/dialogflow/apiv2/dialogflowpb#GetDocumentRequest.
 	}
 	resp, err := c.GetDocument(ctx, req)
 	if err != nil {
@@ -84,6 +118,11 @@ func ExampleDocumentsClient_GetDocument() {
 
 func ExampleDocumentsClient_CreateDocument() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := dialogflow.NewDocumentsClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -92,7 +131,7 @@ func ExampleDocumentsClient_CreateDocument() {
 
 	req := &dialogflowpb.CreateDocumentRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/dialogflow/v2#CreateDocumentRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/dialogflow/apiv2/dialogflowpb#CreateDocumentRequest.
 	}
 	op, err := c.CreateDocument(ctx, req)
 	if err != nil {
@@ -107,8 +146,43 @@ func ExampleDocumentsClient_CreateDocument() {
 	_ = resp
 }
 
+func ExampleDocumentsClient_ImportDocuments() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := dialogflow.NewDocumentsClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &dialogflowpb.ImportDocumentsRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/cloud.google.com/go/dialogflow/apiv2/dialogflowpb#ImportDocumentsRequest.
+	}
+	op, err := c.ImportDocuments(ctx, req)
+	if err != nil {
+		// TODO: Handle error.
+	}
+
+	resp, err := op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	// TODO: Use resp.
+	_ = resp
+}
+
 func ExampleDocumentsClient_DeleteDocument() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := dialogflow.NewDocumentsClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -117,7 +191,7 @@ func ExampleDocumentsClient_DeleteDocument() {
 
 	req := &dialogflowpb.DeleteDocumentRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/dialogflow/v2#DeleteDocumentRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/dialogflow/apiv2/dialogflowpb#DeleteDocumentRequest.
 	}
 	op, err := c.DeleteDocument(ctx, req)
 	if err != nil {
@@ -132,6 +206,11 @@ func ExampleDocumentsClient_DeleteDocument() {
 
 func ExampleDocumentsClient_UpdateDocument() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := dialogflow.NewDocumentsClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -140,7 +219,7 @@ func ExampleDocumentsClient_UpdateDocument() {
 
 	req := &dialogflowpb.UpdateDocumentRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/dialogflow/v2#UpdateDocumentRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/dialogflow/apiv2/dialogflowpb#UpdateDocumentRequest.
 	}
 	op, err := c.UpdateDocument(ctx, req)
 	if err != nil {
@@ -157,6 +236,11 @@ func ExampleDocumentsClient_UpdateDocument() {
 
 func ExampleDocumentsClient_ReloadDocument() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := dialogflow.NewDocumentsClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -165,7 +249,7 @@ func ExampleDocumentsClient_ReloadDocument() {
 
 	req := &dialogflowpb.ReloadDocumentRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/dialogflow/v2#ReloadDocumentRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/dialogflow/apiv2/dialogflowpb#ReloadDocumentRequest.
 	}
 	op, err := c.ReloadDocument(ctx, req)
 	if err != nil {
@@ -178,4 +262,169 @@ func ExampleDocumentsClient_ReloadDocument() {
 	}
 	// TODO: Use resp.
 	_ = resp
+}
+
+func ExampleDocumentsClient_ExportDocument() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := dialogflow.NewDocumentsClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &dialogflowpb.ExportDocumentRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/cloud.google.com/go/dialogflow/apiv2/dialogflowpb#ExportDocumentRequest.
+	}
+	op, err := c.ExportDocument(ctx, req)
+	if err != nil {
+		// TODO: Handle error.
+	}
+
+	resp, err := op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	// TODO: Use resp.
+	_ = resp
+}
+
+func ExampleDocumentsClient_GetLocation() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := dialogflow.NewDocumentsClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &locationpb.GetLocationRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/location#GetLocationRequest.
+	}
+	resp, err := c.GetLocation(ctx, req)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	// TODO: Use resp.
+	_ = resp
+}
+
+func ExampleDocumentsClient_ListLocations() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := dialogflow.NewDocumentsClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &locationpb.ListLocationsRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/location#ListLocationsRequest.
+	}
+	it := c.ListLocations(ctx, req)
+	for {
+		resp, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			// TODO: Handle error.
+		}
+		// TODO: Use resp.
+		_ = resp
+	}
+}
+
+func ExampleDocumentsClient_CancelOperation() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := dialogflow.NewDocumentsClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &longrunningpb.CancelOperationRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/longrunning#CancelOperationRequest.
+	}
+	err = c.CancelOperation(ctx, req)
+	if err != nil {
+		// TODO: Handle error.
+	}
+}
+
+func ExampleDocumentsClient_GetOperation() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := dialogflow.NewDocumentsClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &longrunningpb.GetOperationRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/longrunning#GetOperationRequest.
+	}
+	resp, err := c.GetOperation(ctx, req)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	// TODO: Use resp.
+	_ = resp
+}
+
+func ExampleDocumentsClient_ListOperations() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := dialogflow.NewDocumentsClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &longrunningpb.ListOperationsRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/longrunning#ListOperationsRequest.
+	}
+	it := c.ListOperations(ctx, req)
+	for {
+		resp, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			// TODO: Handle error.
+		}
+		// TODO: Use resp.
+		_ = resp
+	}
 }

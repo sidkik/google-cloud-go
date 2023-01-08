@@ -26,6 +26,8 @@ import (
 	"strconv"
 	"strings"
 
+	"cloud.google.com/go/internal/aliasfix"
+	"cloud.google.com/go/internal/aliasgen"
 	"cloud.google.com/go/internal/gapicgen/execv"
 	"cloud.google.com/go/internal/gapicgen/execv/gocmd"
 	"cloud.google.com/go/internal/gapicgen/git"
@@ -36,14 +38,6 @@ var goPkgOptRe = regexp.MustCompile(`(?m)^option go_package = (.*);`)
 
 // denylist is a set of clients to NOT generate.
 var denylist = map[string]bool{
-	// TODO(codyoss): re-enable after issue is resolve -- https://github.com/googleapis/go-genproto/issues/357
-	"google.golang.org/genproto/googleapis/cloud/recommendationengine/v1beta1": true,
-
-	// These two container APIs are currently frozen. They should not be updated
-	// due to manual layer built on top of them.
-	"google.golang.org/genproto/googleapis/grafeas/v1":                    true,
-	"google.golang.org/genproto/googleapis/devtools/containeranalysis/v1": true,
-
 	// Temporarily stop generation of removed protos. Will be manually cleaned
 	// up with: https://github.com/googleapis/google-cloud-go/issues/4098
 	"google.golang.org/genproto/googleapis/cloud/bigquery/storage/v1alpha2": true,
@@ -53,28 +47,39 @@ var denylist = map[string]bool{
 	"google.golang.org/genproto/googleapis/cloud/ondemandscanning/v1":      true,
 }
 
+// noGRPC is the set of APIs that do not need gRPC stubs.
+var noGRPC = map[string]bool{
+	"google.golang.org/genproto/googleapis/cloud/compute/v1": true,
+}
+
 // GenprotoGenerator is used to generate code for googleapis/go-genproto.
 type GenprotoGenerator struct {
-	genprotoDir        string
-	googleapisDir      string
-	googleapisDiscoDir string
-	protoSrcDir        string
-	forceAll           bool
+	genprotoDir     string
+	googleapisDir   string
+	protoSrcDir     string
+	googleCloudDir  string
+	gapicToGenerate string
+	forceAll        bool
+	genAlias        bool
 }
 
 // NewGenprotoGenerator creates a new GenprotoGenerator.
 func NewGenprotoGenerator(c *Config) *GenprotoGenerator {
 	return &GenprotoGenerator{
-		genprotoDir:        c.GenprotoDir,
-		googleapisDir:      c.GoogleapisDir,
-		googleapisDiscoDir: c.GoogleapisDiscoDir,
-		protoSrcDir:        filepath.Join(c.ProtoDir, "/src"),
-		forceAll:           c.ForceAll,
+		genprotoDir:     c.GenprotoDir,
+		googleapisDir:   c.GoogleapisDir,
+		protoSrcDir:     filepath.Join(c.ProtoDir, "/src"),
+		googleCloudDir:  c.GapicDir,
+		gapicToGenerate: c.GapicToGenerate,
+		forceAll:        c.ForceAll,
+		genAlias:        c.GenAlias,
 	}
 }
 
 var skipPrefixes = []string{
-	"google.golang.org/genproto/googleapis/ads",
+	"google.golang.org/genproto/googleapis/ads/",
+	"google.golang.org/genproto/googleapis/storage/",
+	"googleapis/cloud/",
 }
 
 func hasPrefix(s string, prefixes []string) bool {
@@ -102,6 +107,10 @@ func hasPrefix(s string, prefixes []string) bool {
 // declaring the same Go package.
 func (g *GenprotoGenerator) Regen(ctx context.Context) error {
 	log.Println("regenerating genproto")
+
+	if g.genAlias {
+		return g.generateAliases()
+	}
 
 	// Create space to put generated .pb.go's.
 	c := execv.Command("mkdir", "-p", "generated")
@@ -134,19 +143,19 @@ func (g *GenprotoGenerator) Regen(ctx context.Context) error {
 		if !strings.HasPrefix(pkg, "google.golang.org/genproto") || denylist[pkg] || hasPrefix(pkg, skipPrefixes) {
 			continue
 		}
+		grpc := !noGRPC[pkg]
 		pk := pkg
 		fn := fileNames
-		grp.Go(func() error {
-			log.Println("running protoc on", pk)
-			return g.protoc(fn, true /* grpc */)
-		})
+
+		if !isMigrated(pkg) {
+			grp.Go(func() error {
+				log.Println("running protoc on", pk)
+				return g.protoc(fn, grpc)
+			})
+		} else {
+			log.Printf("skipping, %q has been migrated", pkg)
+		}
 	}
-	// TODO(noahdietz): This needs to be generalized to support any proto in googleapis-discovery.
-	// It's hard because the regen.txt contains the committish from googleapis last used to regen.
-	grp.Go(func() error {
-		log.Println("running protoc on compute")
-		return g.protoc([]string{"google/cloud/compute/v1/compute.proto"}, false /* grpc */)
-	})
 	if err := grp.Wait(); err != nil {
 		return err
 	}
@@ -195,7 +204,7 @@ func (g *GenprotoGenerator) protoc(fileNames []string, grpc bool) error {
 	if grpc {
 		stubs = fmt.Sprintf("--go_out=plugins=grpc:%s/generated", g.genprotoDir)
 	}
-	args := []string{"--experimental_allow_proto3_optional", stubs, "-I", g.googleapisDiscoDir, "-I", g.googleapisDir, "-I", g.protoSrcDir}
+	args := []string{"--experimental_allow_proto3_optional", stubs, "-I", g.googleapisDir, "-I", g.protoSrcDir}
 	args = append(args, fileNames...)
 	c := execv.Command("protoc", args...)
 	c.Dir = g.genprotoDir
@@ -215,6 +224,9 @@ func (g *GenprotoGenerator) getUpdatedPackages(googleapisHash string) (map[strin
 	pkgFiles := make(map[string][]string)
 	for _, v := range files {
 		if !strings.HasSuffix(v, ".proto") {
+			continue
+		}
+		if strings.HasSuffix(v, "compute_small.proto") {
 			continue
 		}
 		path := filepath.Join(g.googleapisDir, v)
@@ -263,7 +275,7 @@ func (g *GenprotoGenerator) getAllPackages() (map[string][]string, error) {
 }
 
 // moveAndCleanupGeneratedSrc moves all generated src to their correct locations
-// in the repository, because protoc puts it in a folder called `generated/``.
+// in the repository, because protoc puts it in a folder called `generated/“.
 func (g *GenprotoGenerator) moveAndCleanupGeneratedSrc() error {
 	log.Println("moving generated code")
 	// The period at the end is analogous to * (copy everything in this dir).
@@ -278,5 +290,24 @@ func (g *GenprotoGenerator) moveAndCleanupGeneratedSrc() error {
 		return err
 	}
 
+	return nil
+}
+
+func (g *GenprotoGenerator) generateAliases() error {
+	for genprotoImport, newPkg := range aliasfix.GenprotoPkgMigration {
+		if !isMigrated(genprotoImport) || g.gapicToGenerate == "" {
+			continue
+		}
+		// remove the stubs dir segment from path
+		gapicImport := newPkg.ImportPath[:strings.LastIndex(newPkg.ImportPath, "/")]
+		if !strings.Contains(g.gapicToGenerate, gapicImport) {
+			continue
+		}
+		srdDir := filepath.Join(g.googleCloudDir, strings.TrimPrefix(newPkg.ImportPath, "cloud.google.com/go/"))
+		destDir := filepath.Join(g.genprotoDir, "googleapis", strings.TrimPrefix(genprotoImport, "google.golang.org/genproto/googleapis/"))
+		if err := aliasgen.Run(srdDir, destDir); err != nil {
+			return err
+		}
+	}
 	return nil
 }

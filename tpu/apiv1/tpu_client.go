@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,12 +25,13 @@ import (
 
 	"cloud.google.com/go/longrunning"
 	lroauto "cloud.google.com/go/longrunning/autogen"
+	tpupb "cloud.google.com/go/tpu/apiv1/tpupb"
 	gax "github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/api/option/internaloption"
 	gtransport "google.golang.org/api/transport/grpc"
-	tpupb "google.golang.org/genproto/googleapis/cloud/tpu/v1"
+	locationpb "google.golang.org/genproto/googleapis/cloud/location"
 	longrunningpb "google.golang.org/genproto/googleapis/longrunning"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -52,6 +53,12 @@ type CallOptions struct {
 	GetTensorFlowVersion   []gax.CallOption
 	ListAcceleratorTypes   []gax.CallOption
 	GetAcceleratorType     []gax.CallOption
+	GetLocation            []gax.CallOption
+	ListLocations          []gax.CallOption
+	CancelOperation        []gax.CallOption
+	DeleteOperation        []gax.CallOption
+	GetOperation           []gax.CallOption
+	ListOperations         []gax.CallOption
 }
 
 func defaultGRPCClientOptions() []option.ClientOption {
@@ -61,7 +68,6 @@ func defaultGRPCClientOptions() []option.ClientOption {
 		internaloption.WithDefaultAudience("https://tpu.googleapis.com/"),
 		internaloption.WithDefaultScopes(DefaultAuthScopes()...),
 		internaloption.EnableJwtWithScope(),
-		option.WithGRPCDialOption(grpc.WithDisableServiceConfig()),
 		option.WithGRPCDialOption(grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(math.MaxInt32))),
 	}
@@ -80,10 +86,16 @@ func defaultCallOptions() *CallOptions {
 		GetTensorFlowVersion:   []gax.CallOption{},
 		ListAcceleratorTypes:   []gax.CallOption{},
 		GetAcceleratorType:     []gax.CallOption{},
+		GetLocation:            []gax.CallOption{},
+		ListLocations:          []gax.CallOption{},
+		CancelOperation:        []gax.CallOption{},
+		DeleteOperation:        []gax.CallOption{},
+		GetOperation:           []gax.CallOption{},
+		ListOperations:         []gax.CallOption{},
 	}
 }
 
-// internalClient is an interface that defines the methods availaible from Cloud TPU API.
+// internalClient is an interface that defines the methods available from Cloud TPU API.
 type internalClient interface {
 	Close() error
 	setGoogleClientInfo(...string)
@@ -104,12 +116,18 @@ type internalClient interface {
 	GetTensorFlowVersion(context.Context, *tpupb.GetTensorFlowVersionRequest, ...gax.CallOption) (*tpupb.TensorFlowVersion, error)
 	ListAcceleratorTypes(context.Context, *tpupb.ListAcceleratorTypesRequest, ...gax.CallOption) *AcceleratorTypeIterator
 	GetAcceleratorType(context.Context, *tpupb.GetAcceleratorTypeRequest, ...gax.CallOption) (*tpupb.AcceleratorType, error)
+	GetLocation(context.Context, *locationpb.GetLocationRequest, ...gax.CallOption) (*locationpb.Location, error)
+	ListLocations(context.Context, *locationpb.ListLocationsRequest, ...gax.CallOption) *LocationIterator
+	CancelOperation(context.Context, *longrunningpb.CancelOperationRequest, ...gax.CallOption) error
+	DeleteOperation(context.Context, *longrunningpb.DeleteOperationRequest, ...gax.CallOption) error
+	GetOperation(context.Context, *longrunningpb.GetOperationRequest, ...gax.CallOption) (*longrunningpb.Operation, error)
+	ListOperations(context.Context, *longrunningpb.ListOperationsRequest, ...gax.CallOption) *OperationIterator
 }
 
 // Client is a client for interacting with Cloud TPU API.
 // Methods, except Close, may be called concurrently. However, fields must not be modified concurrently with method calls.
 //
-// Manages TPU nodes and other resources
+// # Manages TPU nodes and other resources
 //
 // TPU API v1
 type Client struct {
@@ -142,7 +160,8 @@ func (c *Client) setGoogleClientInfo(keyval ...string) {
 
 // Connection returns a connection to the API service.
 //
-// Deprecated.
+// Deprecated: Connections are now pooled so this method does not always
+// return the same resource.
 func (c *Client) Connection() *grpc.ClientConn {
 	return c.internalClient.Connection()
 }
@@ -190,7 +209,7 @@ func (c *Client) ReimageNodeOperation(name string) *ReimageNodeOperation {
 	return c.internalClient.ReimageNodeOperation(name)
 }
 
-// StopNode stops a node.
+// StopNode stops a node, this operation is only available with single TPU nodes.
 func (c *Client) StopNode(ctx context.Context, req *tpupb.StopNodeRequest, opts ...gax.CallOption) (*StopNodeOperation, error) {
 	return c.internalClient.StopNode(ctx, req, opts...)
 }
@@ -232,6 +251,36 @@ func (c *Client) GetAcceleratorType(ctx context.Context, req *tpupb.GetAccelerat
 	return c.internalClient.GetAcceleratorType(ctx, req, opts...)
 }
 
+// GetLocation gets information about a location.
+func (c *Client) GetLocation(ctx context.Context, req *locationpb.GetLocationRequest, opts ...gax.CallOption) (*locationpb.Location, error) {
+	return c.internalClient.GetLocation(ctx, req, opts...)
+}
+
+// ListLocations lists information about the supported locations for this service.
+func (c *Client) ListLocations(ctx context.Context, req *locationpb.ListLocationsRequest, opts ...gax.CallOption) *LocationIterator {
+	return c.internalClient.ListLocations(ctx, req, opts...)
+}
+
+// CancelOperation is a utility method from google.longrunning.Operations.
+func (c *Client) CancelOperation(ctx context.Context, req *longrunningpb.CancelOperationRequest, opts ...gax.CallOption) error {
+	return c.internalClient.CancelOperation(ctx, req, opts...)
+}
+
+// DeleteOperation is a utility method from google.longrunning.Operations.
+func (c *Client) DeleteOperation(ctx context.Context, req *longrunningpb.DeleteOperationRequest, opts ...gax.CallOption) error {
+	return c.internalClient.DeleteOperation(ctx, req, opts...)
+}
+
+// GetOperation is a utility method from google.longrunning.Operations.
+func (c *Client) GetOperation(ctx context.Context, req *longrunningpb.GetOperationRequest, opts ...gax.CallOption) (*longrunningpb.Operation, error) {
+	return c.internalClient.GetOperation(ctx, req, opts...)
+}
+
+// ListOperations is a utility method from google.longrunning.Operations.
+func (c *Client) ListOperations(ctx context.Context, req *longrunningpb.ListOperationsRequest, opts ...gax.CallOption) *OperationIterator {
+	return c.internalClient.ListOperations(ctx, req, opts...)
+}
+
 // gRPCClient is a client for interacting with Cloud TPU API over gRPC transport.
 //
 // Methods, except Close, may be called concurrently. However, fields must not be modified concurrently with method calls.
@@ -253,6 +302,10 @@ type gRPCClient struct {
 	// Users should not Close this client.
 	LROClient **lroauto.OperationsClient
 
+	operationsClient longrunningpb.OperationsClient
+
+	locationsClient locationpb.LocationsClient
+
 	// The x-goog-* metadata to be sent with each request.
 	xGoogMetadata metadata.MD
 }
@@ -260,7 +313,7 @@ type gRPCClient struct {
 // NewClient creates a new tpu client based on gRPC.
 // The returned client must be Closed when it is done being used to clean up its underlying connections.
 //
-// Manages TPU nodes and other resources
+// # Manages TPU nodes and other resources
 //
 // TPU API v1
 func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error) {
@@ -289,6 +342,8 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error
 		disableDeadlines: disableDeadlines,
 		client:           tpupb.NewTpuClient(connPool),
 		CallOptions:      &client.CallOptions,
+		operationsClient: longrunningpb.NewOperationsClient(connPool),
+		locationsClient:  locationpb.NewLocationsClient(connPool),
 	}
 	c.setGoogleClientInfo()
 
@@ -310,7 +365,8 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error
 
 // Connection returns a connection to the API service.
 //
-// Deprecated.
+// Deprecated: Connections are now pooled so this method does not always
+// return the same resource.
 func (c *gRPCClient) Connection() *grpc.ClientConn {
 	return c.connPool.Conn()
 }
@@ -320,7 +376,7 @@ func (c *gRPCClient) Connection() *grpc.ClientConn {
 // use by Google-written clients.
 func (c *gRPCClient) setGoogleClientInfo(keyval ...string) {
 	kv := append([]string{"gl-go", versionGo()}, keyval...)
-	kv = append(kv, "gapic", versionClient, "gax", gax.Version, "grpc", grpc.Version)
+	kv = append(kv, "gapic", getVersionClient(), "gax", gax.Version, "grpc", grpc.Version)
 	c.xGoogMetadata = metadata.Pairs("x-goog-api-client", gax.XGoogHeader(kv...))
 }
 
@@ -332,6 +388,7 @@ func (c *gRPCClient) Close() error {
 
 func (c *gRPCClient) ListNodes(ctx context.Context, req *tpupb.ListNodesRequest, opts ...gax.CallOption) *NodeIterator {
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).ListNodes[0:len((*c.CallOptions).ListNodes):len((*c.CallOptions).ListNodes)], opts...)
 	it := &NodeIterator{}
@@ -381,6 +438,7 @@ func (c *gRPCClient) GetNode(ctx context.Context, req *tpupb.GetNodeRequest, opt
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).GetNode[0:len((*c.CallOptions).GetNode):len((*c.CallOptions).GetNode)], opts...)
 	var resp *tpupb.Node
@@ -402,6 +460,7 @@ func (c *gRPCClient) CreateNode(ctx context.Context, req *tpupb.CreateNodeReques
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).CreateNode[0:len((*c.CallOptions).CreateNode):len((*c.CallOptions).CreateNode)], opts...)
 	var resp *longrunningpb.Operation
@@ -425,6 +484,7 @@ func (c *gRPCClient) DeleteNode(ctx context.Context, req *tpupb.DeleteNodeReques
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).DeleteNode[0:len((*c.CallOptions).DeleteNode):len((*c.CallOptions).DeleteNode)], opts...)
 	var resp *longrunningpb.Operation
@@ -448,6 +508,7 @@ func (c *gRPCClient) ReimageNode(ctx context.Context, req *tpupb.ReimageNodeRequ
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).ReimageNode[0:len((*c.CallOptions).ReimageNode):len((*c.CallOptions).ReimageNode)], opts...)
 	var resp *longrunningpb.Operation
@@ -471,6 +532,7 @@ func (c *gRPCClient) StopNode(ctx context.Context, req *tpupb.StopNodeRequest, o
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).StopNode[0:len((*c.CallOptions).StopNode):len((*c.CallOptions).StopNode)], opts...)
 	var resp *longrunningpb.Operation
@@ -494,6 +556,7 @@ func (c *gRPCClient) StartNode(ctx context.Context, req *tpupb.StartNodeRequest,
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).StartNode[0:len((*c.CallOptions).StartNode):len((*c.CallOptions).StartNode)], opts...)
 	var resp *longrunningpb.Operation
@@ -512,6 +575,7 @@ func (c *gRPCClient) StartNode(ctx context.Context, req *tpupb.StartNodeRequest,
 
 func (c *gRPCClient) ListTensorFlowVersions(ctx context.Context, req *tpupb.ListTensorFlowVersionsRequest, opts ...gax.CallOption) *TensorFlowVersionIterator {
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).ListTensorFlowVersions[0:len((*c.CallOptions).ListTensorFlowVersions):len((*c.CallOptions).ListTensorFlowVersions)], opts...)
 	it := &TensorFlowVersionIterator{}
@@ -561,6 +625,7 @@ func (c *gRPCClient) GetTensorFlowVersion(ctx context.Context, req *tpupb.GetTen
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).GetTensorFlowVersion[0:len((*c.CallOptions).GetTensorFlowVersion):len((*c.CallOptions).GetTensorFlowVersion)], opts...)
 	var resp *tpupb.TensorFlowVersion
@@ -577,6 +642,7 @@ func (c *gRPCClient) GetTensorFlowVersion(ctx context.Context, req *tpupb.GetTen
 
 func (c *gRPCClient) ListAcceleratorTypes(ctx context.Context, req *tpupb.ListAcceleratorTypesRequest, opts ...gax.CallOption) *AcceleratorTypeIterator {
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).ListAcceleratorTypes[0:len((*c.CallOptions).ListAcceleratorTypes):len((*c.CallOptions).ListAcceleratorTypes)], opts...)
 	it := &AcceleratorTypeIterator{}
@@ -626,6 +692,7 @@ func (c *gRPCClient) GetAcceleratorType(ctx context.Context, req *tpupb.GetAccel
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).GetAcceleratorType[0:len((*c.CallOptions).GetAcceleratorType):len((*c.CallOptions).GetAcceleratorType)], opts...)
 	var resp *tpupb.AcceleratorType
@@ -638,6 +705,156 @@ func (c *gRPCClient) GetAcceleratorType(ctx context.Context, req *tpupb.GetAccel
 		return nil, err
 	}
 	return resp, nil
+}
+
+func (c *gRPCClient) GetLocation(ctx context.Context, req *locationpb.GetLocationRequest, opts ...gax.CallOption) (*locationpb.Location, error) {
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
+	opts = append((*c.CallOptions).GetLocation[0:len((*c.CallOptions).GetLocation):len((*c.CallOptions).GetLocation)], opts...)
+	var resp *locationpb.Location
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		resp, err = c.locationsClient.GetLocation(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (c *gRPCClient) ListLocations(ctx context.Context, req *locationpb.ListLocationsRequest, opts ...gax.CallOption) *LocationIterator {
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
+	opts = append((*c.CallOptions).ListLocations[0:len((*c.CallOptions).ListLocations):len((*c.CallOptions).ListLocations)], opts...)
+	it := &LocationIterator{}
+	req = proto.Clone(req).(*locationpb.ListLocationsRequest)
+	it.InternalFetch = func(pageSize int, pageToken string) ([]*locationpb.Location, string, error) {
+		resp := &locationpb.ListLocationsResponse{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
+		if pageSize > math.MaxInt32 {
+			req.PageSize = math.MaxInt32
+		} else if pageSize != 0 {
+			req.PageSize = int32(pageSize)
+		}
+		err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+			var err error
+			resp, err = c.locationsClient.ListLocations(ctx, req, settings.GRPC...)
+			return err
+		}, opts...)
+		if err != nil {
+			return nil, "", err
+		}
+
+		it.Response = resp
+		return resp.GetLocations(), resp.GetNextPageToken(), nil
+	}
+	fetch := func(pageSize int, pageToken string) (string, error) {
+		items, nextPageToken, err := it.InternalFetch(pageSize, pageToken)
+		if err != nil {
+			return "", err
+		}
+		it.items = append(it.items, items...)
+		return nextPageToken, nil
+	}
+
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
+	it.pageInfo.MaxSize = int(req.GetPageSize())
+	it.pageInfo.Token = req.GetPageToken()
+
+	return it
+}
+
+func (c *gRPCClient) CancelOperation(ctx context.Context, req *longrunningpb.CancelOperationRequest, opts ...gax.CallOption) error {
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
+	opts = append((*c.CallOptions).CancelOperation[0:len((*c.CallOptions).CancelOperation):len((*c.CallOptions).CancelOperation)], opts...)
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		_, err = c.operationsClient.CancelOperation(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	return err
+}
+
+func (c *gRPCClient) DeleteOperation(ctx context.Context, req *longrunningpb.DeleteOperationRequest, opts ...gax.CallOption) error {
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
+	opts = append((*c.CallOptions).DeleteOperation[0:len((*c.CallOptions).DeleteOperation):len((*c.CallOptions).DeleteOperation)], opts...)
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		_, err = c.operationsClient.DeleteOperation(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	return err
+}
+
+func (c *gRPCClient) GetOperation(ctx context.Context, req *longrunningpb.GetOperationRequest, opts ...gax.CallOption) (*longrunningpb.Operation, error) {
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
+	opts = append((*c.CallOptions).GetOperation[0:len((*c.CallOptions).GetOperation):len((*c.CallOptions).GetOperation)], opts...)
+	var resp *longrunningpb.Operation
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		resp, err = c.operationsClient.GetOperation(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (c *gRPCClient) ListOperations(ctx context.Context, req *longrunningpb.ListOperationsRequest, opts ...gax.CallOption) *OperationIterator {
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
+	opts = append((*c.CallOptions).ListOperations[0:len((*c.CallOptions).ListOperations):len((*c.CallOptions).ListOperations)], opts...)
+	it := &OperationIterator{}
+	req = proto.Clone(req).(*longrunningpb.ListOperationsRequest)
+	it.InternalFetch = func(pageSize int, pageToken string) ([]*longrunningpb.Operation, string, error) {
+		resp := &longrunningpb.ListOperationsResponse{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
+		if pageSize > math.MaxInt32 {
+			req.PageSize = math.MaxInt32
+		} else if pageSize != 0 {
+			req.PageSize = int32(pageSize)
+		}
+		err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+			var err error
+			resp, err = c.operationsClient.ListOperations(ctx, req, settings.GRPC...)
+			return err
+		}, opts...)
+		if err != nil {
+			return nil, "", err
+		}
+
+		it.Response = resp
+		return resp.GetOperations(), resp.GetNextPageToken(), nil
+	}
+	fetch := func(pageSize int, pageToken string) (string, error) {
+		items, nextPageToken, err := it.InternalFetch(pageSize, pageToken)
+		if err != nil {
+			return "", err
+		}
+		it.items = append(it.items, items...)
+		return nextPageToken, nil
+	}
+
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
+	it.pageInfo.MaxSize = int(req.GetPageSize())
+	it.pageInfo.Token = req.GetPageToken()
+
+	return it
 }
 
 // CreateNodeOperation manages a long-running operation from CreateNode.
@@ -1032,6 +1249,53 @@ func (it *AcceleratorTypeIterator) takeBuf() interface{} {
 	return b
 }
 
+// LocationIterator manages a stream of *locationpb.Location.
+type LocationIterator struct {
+	items    []*locationpb.Location
+	pageInfo *iterator.PageInfo
+	nextFunc func() error
+
+	// Response is the raw response for the current page.
+	// It must be cast to the RPC response type.
+	// Calling Next() or InternalFetch() updates this value.
+	Response interface{}
+
+	// InternalFetch is for use by the Google Cloud Libraries only.
+	// It is not part of the stable interface of this package.
+	//
+	// InternalFetch returns results from a single call to the underlying RPC.
+	// The number of results is no greater than pageSize.
+	// If there are no more results, nextPageToken is empty and err is nil.
+	InternalFetch func(pageSize int, pageToken string) (results []*locationpb.Location, nextPageToken string, err error)
+}
+
+// PageInfo supports pagination. See the google.golang.org/api/iterator package for details.
+func (it *LocationIterator) PageInfo() *iterator.PageInfo {
+	return it.pageInfo
+}
+
+// Next returns the next result. Its second return value is iterator.Done if there are no more
+// results. Once Next returns Done, all subsequent calls will return Done.
+func (it *LocationIterator) Next() (*locationpb.Location, error) {
+	var item *locationpb.Location
+	if err := it.nextFunc(); err != nil {
+		return item, err
+	}
+	item = it.items[0]
+	it.items = it.items[1:]
+	return item, nil
+}
+
+func (it *LocationIterator) bufLen() int {
+	return len(it.items)
+}
+
+func (it *LocationIterator) takeBuf() interface{} {
+	b := it.items
+	it.items = nil
+	return b
+}
+
 // NodeIterator manages a stream of *tpupb.Node.
 type NodeIterator struct {
 	items    []*tpupb.Node
@@ -1074,6 +1338,53 @@ func (it *NodeIterator) bufLen() int {
 }
 
 func (it *NodeIterator) takeBuf() interface{} {
+	b := it.items
+	it.items = nil
+	return b
+}
+
+// OperationIterator manages a stream of *longrunningpb.Operation.
+type OperationIterator struct {
+	items    []*longrunningpb.Operation
+	pageInfo *iterator.PageInfo
+	nextFunc func() error
+
+	// Response is the raw response for the current page.
+	// It must be cast to the RPC response type.
+	// Calling Next() or InternalFetch() updates this value.
+	Response interface{}
+
+	// InternalFetch is for use by the Google Cloud Libraries only.
+	// It is not part of the stable interface of this package.
+	//
+	// InternalFetch returns results from a single call to the underlying RPC.
+	// The number of results is no greater than pageSize.
+	// If there are no more results, nextPageToken is empty and err is nil.
+	InternalFetch func(pageSize int, pageToken string) (results []*longrunningpb.Operation, nextPageToken string, err error)
+}
+
+// PageInfo supports pagination. See the google.golang.org/api/iterator package for details.
+func (it *OperationIterator) PageInfo() *iterator.PageInfo {
+	return it.pageInfo
+}
+
+// Next returns the next result. Its second return value is iterator.Done if there are no more
+// results. Once Next returns Done, all subsequent calls will return Done.
+func (it *OperationIterator) Next() (*longrunningpb.Operation, error) {
+	var item *longrunningpb.Operation
+	if err := it.nextFunc(); err != nil {
+		return item, err
+	}
+	item = it.items[0]
+	it.items = it.items[1:]
+	return item, nil
+}
+
+func (it *OperationIterator) bufLen() int {
+	return len(it.items)
+}
+
+func (it *OperationIterator) takeBuf() interface{} {
 	b := it.items
 	it.items = nil
 	return b

@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,13 +26,13 @@ import (
 	"net/url"
 	"sort"
 
+	computepb "cloud.google.com/go/compute/apiv1/computepb"
 	gax "github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/api/option/internaloption"
 	httptransport "google.golang.org/api/transport/http"
-	computepb "google.golang.org/genproto/googleapis/cloud/compute/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -54,7 +54,21 @@ type InstanceGroupsCallOptions struct {
 	SetNamedPorts   []gax.CallOption
 }
 
-// internalInstanceGroupsClient is an interface that defines the methods availaible from Google Compute Engine API.
+func defaultInstanceGroupsRESTCallOptions() *InstanceGroupsCallOptions {
+	return &InstanceGroupsCallOptions{
+		AddInstances:    []gax.CallOption{},
+		AggregatedList:  []gax.CallOption{},
+		Delete:          []gax.CallOption{},
+		Get:             []gax.CallOption{},
+		Insert:          []gax.CallOption{},
+		List:            []gax.CallOption{},
+		ListInstances:   []gax.CallOption{},
+		RemoveInstances: []gax.CallOption{},
+		SetNamedPorts:   []gax.CallOption{},
+	}
+}
+
+// internalInstanceGroupsClient is an interface that defines the methods available from Google Compute Engine API.
 type internalInstanceGroupsClient interface {
 	Close() error
 	setGoogleClientInfo(...string)
@@ -99,7 +113,8 @@ func (c *InstanceGroupsClient) setGoogleClientInfo(keyval ...string) {
 
 // Connection returns a connection to the API service.
 //
-// Deprecated.
+// Deprecated: Connections are now pooled so this method does not always
+// return the same resource.
 func (c *InstanceGroupsClient) Connection() *grpc.ClientConn {
 	return c.internalClient.Connection()
 }
@@ -134,7 +149,7 @@ func (c *InstanceGroupsClient) List(ctx context.Context, req *computepb.ListInst
 	return c.internalClient.List(ctx, req, opts...)
 }
 
-// ListInstances lists the instances in the specified instance group. The orderBy query parameter is not supported.
+// ListInstances lists the instances in the specified instance group. The orderBy query parameter is not supported. The filter query parameter is supported, but only for expressions that use eq (equal) or ne (not equal) operators.
 func (c *InstanceGroupsClient) ListInstances(ctx context.Context, req *computepb.ListInstancesInstanceGroupsRequest, opts ...gax.CallOption) *InstanceWithNamedPortsIterator {
 	return c.internalClient.ListInstances(ctx, req, opts...)
 }
@@ -157,8 +172,14 @@ type instanceGroupsRESTClient struct {
 	// The http client.
 	httpClient *http.Client
 
+	// operationClient is used to call the operation-specific management service.
+	operationClient *ZoneOperationsClient
+
 	// The x-goog-* metadata to be sent with each request.
 	xGoogMetadata metadata.MD
+
+	// Points back to the CallOptions field of the containing InstanceGroupsClient
+	CallOptions **InstanceGroupsCallOptions
 }
 
 // NewInstanceGroupsRESTClient creates a new instance groups rest client.
@@ -171,13 +192,25 @@ func NewInstanceGroupsRESTClient(ctx context.Context, opts ...option.ClientOptio
 		return nil, err
 	}
 
+	callOpts := defaultInstanceGroupsRESTCallOptions()
 	c := &instanceGroupsRESTClient{
-		endpoint:   endpoint,
-		httpClient: httpClient,
+		endpoint:    endpoint,
+		httpClient:  httpClient,
+		CallOptions: &callOpts,
 	}
 	c.setGoogleClientInfo()
 
-	return &InstanceGroupsClient{internalClient: c, CallOptions: &InstanceGroupsCallOptions{}}, nil
+	o := []option.ClientOption{
+		option.WithHTTPClient(httpClient),
+		option.WithEndpoint(endpoint),
+	}
+	opC, err := NewZoneOperationsRESTClient(ctx, o...)
+	if err != nil {
+		return nil, err
+	}
+	c.operationClient = opC
+
+	return &InstanceGroupsClient{internalClient: c, CallOptions: callOpts}, nil
 }
 
 func defaultInstanceGroupsRESTClientOptions() []option.ClientOption {
@@ -194,7 +227,7 @@ func defaultInstanceGroupsRESTClientOptions() []option.ClientOption {
 // use by Google-written clients.
 func (c *instanceGroupsRESTClient) setGoogleClientInfo(keyval ...string) {
 	kv := append([]string{"gl-go", versionGo()}, keyval...)
-	kv = append(kv, "gapic", versionClient, "gax", gax.Version, "rest", "UNKNOWN")
+	kv = append(kv, "gapic", getVersionClient(), "gax", gax.Version, "rest", "UNKNOWN")
 	c.xGoogMetadata = metadata.Pairs("x-goog-api-client", gax.XGoogHeader(kv...))
 }
 
@@ -203,12 +236,15 @@ func (c *instanceGroupsRESTClient) setGoogleClientInfo(keyval ...string) {
 func (c *instanceGroupsRESTClient) Close() error {
 	// Replace httpClient with nil to force cleanup.
 	c.httpClient = nil
+	if err := c.operationClient.Close(); err != nil {
+		return err
+	}
 	return nil
 }
 
 // Connection returns a connection to the API service.
 //
-// Deprecated.
+// Deprecated: This method always returns nil.
 func (c *instanceGroupsRESTClient) Connection() *grpc.ClientConn {
 	return nil
 }
@@ -222,50 +258,71 @@ func (c *instanceGroupsRESTClient) AddInstances(ctx context.Context, req *comput
 		return nil, err
 	}
 
-	baseUrl, _ := url.Parse(c.endpoint)
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return nil, err
+	}
 	baseUrl.Path += fmt.Sprintf("/compute/v1/projects/%v/zones/%v/instanceGroups/%v/addInstances", req.GetProject(), req.GetZone(), req.GetInstanceGroup())
 
 	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
 	if req != nil && req.RequestId != nil {
 		params.Add("requestId", fmt.Sprintf("%v", req.GetRequestId()))
 	}
 
 	baseUrl.RawQuery = params.Encode()
 
-	httpReq, err := http.NewRequest("POST", baseUrl.String(), bytes.NewReader(jsonReq))
-	if err != nil {
-		return nil, err
-	}
-	httpReq = httpReq.WithContext(ctx)
-	// Set the headers
-	for k, v := range c.xGoogMetadata {
-		httpReq.Header[k] = v
-	}
-	httpReq.Header["Content-Type"] = []string{"application/json"}
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v&%s=%v&%s=%v", "project", url.QueryEscape(req.GetProject()), "zone", url.QueryEscape(req.GetZone()), "instance_group", url.QueryEscape(req.GetInstanceGroup())))
 
-	httpRsp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, err
-	}
-	defer httpRsp.Body.Close()
-
-	if err = googleapi.CheckResponse(httpRsp); err != nil {
-		return nil, err
-	}
-
-	buf, err := ioutil.ReadAll(httpRsp.Body)
-	if err != nil {
-		return nil, err
-	}
-
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	opts = append((*c.CallOptions).AddInstances[0:len((*c.CallOptions).AddInstances):len((*c.CallOptions).AddInstances)], opts...)
 	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
-	rsp := &computepb.Operation{}
+	resp := &computepb.Operation{}
+	e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("POST", baseUrl.String(), bytes.NewReader(jsonReq))
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
 
-	if err := unm.Unmarshal(buf, rsp); err != nil {
-		return nil, maybeUnknownEnum(err)
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		if err = googleapi.CheckResponse(httpRsp); err != nil {
+			return err
+		}
+
+		buf, err := ioutil.ReadAll(httpRsp.Body)
+		if err != nil {
+			return err
+		}
+
+		if err := unm.Unmarshal(buf, resp); err != nil {
+			return maybeUnknownEnum(err)
+		}
+
+		return nil
+	}, opts...)
+	if e != nil {
+		return nil, e
 	}
-	op := &Operation{proto: rsp}
-	return op, err
+	op := &Operation{
+		&zoneOperationsHandle{
+			c:       c.operationClient,
+			proto:   resp,
+			project: req.GetProject(),
+			zone:    req.GetZone(),
+		},
+	}
+	return op, nil
 }
 
 // AggregatedList retrieves the list of instance groups and sorts them by zone.
@@ -283,10 +340,14 @@ func (c *instanceGroupsRESTClient) AggregatedList(ctx context.Context, req *comp
 		} else if pageSize != 0 {
 			req.MaxResults = proto.Uint32(uint32(pageSize))
 		}
-		baseUrl, _ := url.Parse(c.endpoint)
+		baseUrl, err := url.Parse(c.endpoint)
+		if err != nil {
+			return nil, "", err
+		}
 		baseUrl.Path += fmt.Sprintf("/compute/v1/projects/%v/aggregated/instanceGroups", req.GetProject())
 
 		params := url.Values{}
+		params.Add("$alt", "json;enum-encoding=int")
 		if req != nil && req.Filter != nil {
 			params.Add("filter", fmt.Sprintf("%v", req.GetFilter()))
 		}
@@ -308,33 +369,42 @@ func (c *instanceGroupsRESTClient) AggregatedList(ctx context.Context, req *comp
 
 		baseUrl.RawQuery = params.Encode()
 
-		httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
-		if err != nil {
-			return nil, "", err
-		}
+		// Build HTTP headers from client and context metadata.
+		headers := buildHeaders(ctx, c.xGoogMetadata, metadata.Pairs("Content-Type", "application/json"))
+		e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+			if settings.Path != "" {
+				baseUrl.Path = settings.Path
+			}
+			httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
+			if err != nil {
+				return err
+			}
+			httpReq.Header = headers
 
-		// Set the headers
-		for k, v := range c.xGoogMetadata {
-			httpReq.Header[k] = v
-		}
+			httpRsp, err := c.httpClient.Do(httpReq)
+			if err != nil {
+				return err
+			}
+			defer httpRsp.Body.Close()
 
-		httpReq.Header["Content-Type"] = []string{"application/json"}
-		httpRsp, err := c.httpClient.Do(httpReq)
-		if err != nil {
-			return nil, "", err
-		}
-		defer httpRsp.Body.Close()
+			if err = googleapi.CheckResponse(httpRsp); err != nil {
+				return err
+			}
 
-		if err = googleapi.CheckResponse(httpRsp); err != nil {
-			return nil, "", err
-		}
+			buf, err := ioutil.ReadAll(httpRsp.Body)
+			if err != nil {
+				return err
+			}
 
-		buf, err := ioutil.ReadAll(httpRsp.Body)
-		if err != nil {
-			return nil, "", err
-		}
+			if err := unm.Unmarshal(buf, resp); err != nil {
+				return maybeUnknownEnum(err)
+			}
 
-		unm.Unmarshal(buf, resp)
+			return nil
+		}, opts...)
+		if e != nil {
+			return nil, "", e
+		}
 		it.Response = resp
 
 		elems := make([]InstanceGroupsScopedListPair, 0, len(resp.GetItems()))
@@ -364,90 +434,129 @@ func (c *instanceGroupsRESTClient) AggregatedList(ctx context.Context, req *comp
 
 // Delete deletes the specified instance group. The instances in the group are not deleted. Note that instance group must not belong to a backend service. Read Deleting an instance group for more information.
 func (c *instanceGroupsRESTClient) Delete(ctx context.Context, req *computepb.DeleteInstanceGroupRequest, opts ...gax.CallOption) (*Operation, error) {
-	baseUrl, _ := url.Parse(c.endpoint)
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return nil, err
+	}
 	baseUrl.Path += fmt.Sprintf("/compute/v1/projects/%v/zones/%v/instanceGroups/%v", req.GetProject(), req.GetZone(), req.GetInstanceGroup())
 
 	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
 	if req != nil && req.RequestId != nil {
 		params.Add("requestId", fmt.Sprintf("%v", req.GetRequestId()))
 	}
 
 	baseUrl.RawQuery = params.Encode()
 
-	httpReq, err := http.NewRequest("DELETE", baseUrl.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	httpReq = httpReq.WithContext(ctx)
-	// Set the headers
-	for k, v := range c.xGoogMetadata {
-		httpReq.Header[k] = v
-	}
-	httpReq.Header["Content-Type"] = []string{"application/json"}
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v&%s=%v&%s=%v", "project", url.QueryEscape(req.GetProject()), "zone", url.QueryEscape(req.GetZone()), "instance_group", url.QueryEscape(req.GetInstanceGroup())))
 
-	httpRsp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, err
-	}
-	defer httpRsp.Body.Close()
-
-	if err = googleapi.CheckResponse(httpRsp); err != nil {
-		return nil, err
-	}
-
-	buf, err := ioutil.ReadAll(httpRsp.Body)
-	if err != nil {
-		return nil, err
-	}
-
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	opts = append((*c.CallOptions).Delete[0:len((*c.CallOptions).Delete):len((*c.CallOptions).Delete)], opts...)
 	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
-	rsp := &computepb.Operation{}
+	resp := &computepb.Operation{}
+	e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("DELETE", baseUrl.String(), nil)
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
 
-	if err := unm.Unmarshal(buf, rsp); err != nil {
-		return nil, maybeUnknownEnum(err)
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		if err = googleapi.CheckResponse(httpRsp); err != nil {
+			return err
+		}
+
+		buf, err := ioutil.ReadAll(httpRsp.Body)
+		if err != nil {
+			return err
+		}
+
+		if err := unm.Unmarshal(buf, resp); err != nil {
+			return maybeUnknownEnum(err)
+		}
+
+		return nil
+	}, opts...)
+	if e != nil {
+		return nil, e
 	}
-	op := &Operation{proto: rsp}
-	return op, err
+	op := &Operation{
+		&zoneOperationsHandle{
+			c:       c.operationClient,
+			proto:   resp,
+			project: req.GetProject(),
+			zone:    req.GetZone(),
+		},
+	}
+	return op, nil
 }
 
 // Get returns the specified zonal instance group. Get a list of available zonal instance groups by making a list() request. For managed instance groups, use the instanceGroupManagers or regionInstanceGroupManagers methods instead.
 func (c *instanceGroupsRESTClient) Get(ctx context.Context, req *computepb.GetInstanceGroupRequest, opts ...gax.CallOption) (*computepb.InstanceGroup, error) {
-	baseUrl, _ := url.Parse(c.endpoint)
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return nil, err
+	}
 	baseUrl.Path += fmt.Sprintf("/compute/v1/projects/%v/zones/%v/instanceGroups/%v", req.GetProject(), req.GetZone(), req.GetInstanceGroup())
 
-	httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	httpReq = httpReq.WithContext(ctx)
-	// Set the headers
-	for k, v := range c.xGoogMetadata {
-		httpReq.Header[k] = v
-	}
-	httpReq.Header["Content-Type"] = []string{"application/json"}
+	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
 
-	httpRsp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, err
-	}
-	defer httpRsp.Body.Close()
+	baseUrl.RawQuery = params.Encode()
 
-	if err = googleapi.CheckResponse(httpRsp); err != nil {
-		return nil, err
-	}
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v&%s=%v&%s=%v", "project", url.QueryEscape(req.GetProject()), "zone", url.QueryEscape(req.GetZone()), "instance_group", url.QueryEscape(req.GetInstanceGroup())))
 
-	buf, err := ioutil.ReadAll(httpRsp.Body)
-	if err != nil {
-		return nil, err
-	}
-
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	opts = append((*c.CallOptions).Get[0:len((*c.CallOptions).Get):len((*c.CallOptions).Get)], opts...)
 	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
-	rsp := &computepb.InstanceGroup{}
+	resp := &computepb.InstanceGroup{}
+	e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
 
-	if err := unm.Unmarshal(buf, rsp); err != nil {
-		return nil, maybeUnknownEnum(err)
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		if err = googleapi.CheckResponse(httpRsp); err != nil {
+			return err
+		}
+
+		buf, err := ioutil.ReadAll(httpRsp.Body)
+		if err != nil {
+			return err
+		}
+
+		if err := unm.Unmarshal(buf, resp); err != nil {
+			return maybeUnknownEnum(err)
+		}
+
+		return nil
+	}, opts...)
+	if e != nil {
+		return nil, e
 	}
-	return rsp, nil
+	return resp, nil
 }
 
 // Insert creates an instance group in the specified project using the parameters that are included in the request.
@@ -459,50 +568,71 @@ func (c *instanceGroupsRESTClient) Insert(ctx context.Context, req *computepb.In
 		return nil, err
 	}
 
-	baseUrl, _ := url.Parse(c.endpoint)
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return nil, err
+	}
 	baseUrl.Path += fmt.Sprintf("/compute/v1/projects/%v/zones/%v/instanceGroups", req.GetProject(), req.GetZone())
 
 	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
 	if req != nil && req.RequestId != nil {
 		params.Add("requestId", fmt.Sprintf("%v", req.GetRequestId()))
 	}
 
 	baseUrl.RawQuery = params.Encode()
 
-	httpReq, err := http.NewRequest("POST", baseUrl.String(), bytes.NewReader(jsonReq))
-	if err != nil {
-		return nil, err
-	}
-	httpReq = httpReq.WithContext(ctx)
-	// Set the headers
-	for k, v := range c.xGoogMetadata {
-		httpReq.Header[k] = v
-	}
-	httpReq.Header["Content-Type"] = []string{"application/json"}
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v&%s=%v", "project", url.QueryEscape(req.GetProject()), "zone", url.QueryEscape(req.GetZone())))
 
-	httpRsp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, err
-	}
-	defer httpRsp.Body.Close()
-
-	if err = googleapi.CheckResponse(httpRsp); err != nil {
-		return nil, err
-	}
-
-	buf, err := ioutil.ReadAll(httpRsp.Body)
-	if err != nil {
-		return nil, err
-	}
-
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	opts = append((*c.CallOptions).Insert[0:len((*c.CallOptions).Insert):len((*c.CallOptions).Insert)], opts...)
 	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
-	rsp := &computepb.Operation{}
+	resp := &computepb.Operation{}
+	e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("POST", baseUrl.String(), bytes.NewReader(jsonReq))
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
 
-	if err := unm.Unmarshal(buf, rsp); err != nil {
-		return nil, maybeUnknownEnum(err)
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		if err = googleapi.CheckResponse(httpRsp); err != nil {
+			return err
+		}
+
+		buf, err := ioutil.ReadAll(httpRsp.Body)
+		if err != nil {
+			return err
+		}
+
+		if err := unm.Unmarshal(buf, resp); err != nil {
+			return maybeUnknownEnum(err)
+		}
+
+		return nil
+	}, opts...)
+	if e != nil {
+		return nil, e
 	}
-	op := &Operation{proto: rsp}
-	return op, err
+	op := &Operation{
+		&zoneOperationsHandle{
+			c:       c.operationClient,
+			proto:   resp,
+			project: req.GetProject(),
+			zone:    req.GetZone(),
+		},
+	}
+	return op, nil
 }
 
 // List retrieves the list of zonal instance group resources contained within the specified zone. For managed instance groups, use the instanceGroupManagers or regionInstanceGroupManagers methods instead.
@@ -520,10 +650,14 @@ func (c *instanceGroupsRESTClient) List(ctx context.Context, req *computepb.List
 		} else if pageSize != 0 {
 			req.MaxResults = proto.Uint32(uint32(pageSize))
 		}
-		baseUrl, _ := url.Parse(c.endpoint)
+		baseUrl, err := url.Parse(c.endpoint)
+		if err != nil {
+			return nil, "", err
+		}
 		baseUrl.Path += fmt.Sprintf("/compute/v1/projects/%v/zones/%v/instanceGroups", req.GetProject(), req.GetZone())
 
 		params := url.Values{}
+		params.Add("$alt", "json;enum-encoding=int")
 		if req != nil && req.Filter != nil {
 			params.Add("filter", fmt.Sprintf("%v", req.GetFilter()))
 		}
@@ -542,33 +676,42 @@ func (c *instanceGroupsRESTClient) List(ctx context.Context, req *computepb.List
 
 		baseUrl.RawQuery = params.Encode()
 
-		httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
-		if err != nil {
-			return nil, "", err
-		}
+		// Build HTTP headers from client and context metadata.
+		headers := buildHeaders(ctx, c.xGoogMetadata, metadata.Pairs("Content-Type", "application/json"))
+		e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+			if settings.Path != "" {
+				baseUrl.Path = settings.Path
+			}
+			httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
+			if err != nil {
+				return err
+			}
+			httpReq.Header = headers
 
-		// Set the headers
-		for k, v := range c.xGoogMetadata {
-			httpReq.Header[k] = v
-		}
+			httpRsp, err := c.httpClient.Do(httpReq)
+			if err != nil {
+				return err
+			}
+			defer httpRsp.Body.Close()
 
-		httpReq.Header["Content-Type"] = []string{"application/json"}
-		httpRsp, err := c.httpClient.Do(httpReq)
-		if err != nil {
-			return nil, "", err
-		}
-		defer httpRsp.Body.Close()
+			if err = googleapi.CheckResponse(httpRsp); err != nil {
+				return err
+			}
 
-		if err = googleapi.CheckResponse(httpRsp); err != nil {
-			return nil, "", err
-		}
+			buf, err := ioutil.ReadAll(httpRsp.Body)
+			if err != nil {
+				return err
+			}
 
-		buf, err := ioutil.ReadAll(httpRsp.Body)
-		if err != nil {
-			return nil, "", err
-		}
+			if err := unm.Unmarshal(buf, resp); err != nil {
+				return maybeUnknownEnum(err)
+			}
 
-		unm.Unmarshal(buf, resp)
+			return nil
+		}, opts...)
+		if e != nil {
+			return nil, "", e
+		}
 		it.Response = resp
 		return resp.GetItems(), resp.GetNextPageToken(), nil
 	}
@@ -589,11 +732,11 @@ func (c *instanceGroupsRESTClient) List(ctx context.Context, req *computepb.List
 	return it
 }
 
-// ListInstances lists the instances in the specified instance group. The orderBy query parameter is not supported.
+// ListInstances lists the instances in the specified instance group. The orderBy query parameter is not supported. The filter query parameter is supported, but only for expressions that use eq (equal) or ne (not equal) operators.
 func (c *instanceGroupsRESTClient) ListInstances(ctx context.Context, req *computepb.ListInstancesInstanceGroupsRequest, opts ...gax.CallOption) *InstanceWithNamedPortsIterator {
 	it := &InstanceWithNamedPortsIterator{}
 	req = proto.Clone(req).(*computepb.ListInstancesInstanceGroupsRequest)
-	m := protojson.MarshalOptions{AllowPartial: true, UseProtoNames: false}
+	m := protojson.MarshalOptions{AllowPartial: true}
 	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
 	it.InternalFetch = func(pageSize int, pageToken string) ([]*computepb.InstanceWithNamedPorts, string, error) {
 		resp := &computepb.InstanceGroupsListInstances{}
@@ -610,10 +753,14 @@ func (c *instanceGroupsRESTClient) ListInstances(ctx context.Context, req *compu
 			return nil, "", err
 		}
 
-		baseUrl, _ := url.Parse(c.endpoint)
+		baseUrl, err := url.Parse(c.endpoint)
+		if err != nil {
+			return nil, "", err
+		}
 		baseUrl.Path += fmt.Sprintf("/compute/v1/projects/%v/zones/%v/instanceGroups/%v/listInstances", req.GetProject(), req.GetZone(), req.GetInstanceGroup())
 
 		params := url.Values{}
+		params.Add("$alt", "json;enum-encoding=int")
 		if req != nil && req.Filter != nil {
 			params.Add("filter", fmt.Sprintf("%v", req.GetFilter()))
 		}
@@ -632,33 +779,42 @@ func (c *instanceGroupsRESTClient) ListInstances(ctx context.Context, req *compu
 
 		baseUrl.RawQuery = params.Encode()
 
-		httpReq, err := http.NewRequest("POST", baseUrl.String(), bytes.NewReader(jsonReq))
-		if err != nil {
-			return nil, "", err
-		}
+		// Build HTTP headers from client and context metadata.
+		headers := buildHeaders(ctx, c.xGoogMetadata, metadata.Pairs("Content-Type", "application/json"))
+		e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+			if settings.Path != "" {
+				baseUrl.Path = settings.Path
+			}
+			httpReq, err := http.NewRequest("POST", baseUrl.String(), bytes.NewReader(jsonReq))
+			if err != nil {
+				return err
+			}
+			httpReq.Header = headers
 
-		// Set the headers
-		for k, v := range c.xGoogMetadata {
-			httpReq.Header[k] = v
-		}
+			httpRsp, err := c.httpClient.Do(httpReq)
+			if err != nil {
+				return err
+			}
+			defer httpRsp.Body.Close()
 
-		httpReq.Header["Content-Type"] = []string{"application/json"}
-		httpRsp, err := c.httpClient.Do(httpReq)
-		if err != nil {
-			return nil, "", err
-		}
-		defer httpRsp.Body.Close()
+			if err = googleapi.CheckResponse(httpRsp); err != nil {
+				return err
+			}
 
-		if err = googleapi.CheckResponse(httpRsp); err != nil {
-			return nil, "", err
-		}
+			buf, err := ioutil.ReadAll(httpRsp.Body)
+			if err != nil {
+				return err
+			}
 
-		buf, err := ioutil.ReadAll(httpRsp.Body)
-		if err != nil {
-			return nil, "", err
-		}
+			if err := unm.Unmarshal(buf, resp); err != nil {
+				return maybeUnknownEnum(err)
+			}
 
-		unm.Unmarshal(buf, resp)
+			return nil
+		}, opts...)
+		if e != nil {
+			return nil, "", e
+		}
 		it.Response = resp
 		return resp.GetItems(), resp.GetNextPageToken(), nil
 	}
@@ -688,50 +844,71 @@ func (c *instanceGroupsRESTClient) RemoveInstances(ctx context.Context, req *com
 		return nil, err
 	}
 
-	baseUrl, _ := url.Parse(c.endpoint)
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return nil, err
+	}
 	baseUrl.Path += fmt.Sprintf("/compute/v1/projects/%v/zones/%v/instanceGroups/%v/removeInstances", req.GetProject(), req.GetZone(), req.GetInstanceGroup())
 
 	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
 	if req != nil && req.RequestId != nil {
 		params.Add("requestId", fmt.Sprintf("%v", req.GetRequestId()))
 	}
 
 	baseUrl.RawQuery = params.Encode()
 
-	httpReq, err := http.NewRequest("POST", baseUrl.String(), bytes.NewReader(jsonReq))
-	if err != nil {
-		return nil, err
-	}
-	httpReq = httpReq.WithContext(ctx)
-	// Set the headers
-	for k, v := range c.xGoogMetadata {
-		httpReq.Header[k] = v
-	}
-	httpReq.Header["Content-Type"] = []string{"application/json"}
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v&%s=%v&%s=%v", "project", url.QueryEscape(req.GetProject()), "zone", url.QueryEscape(req.GetZone()), "instance_group", url.QueryEscape(req.GetInstanceGroup())))
 
-	httpRsp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, err
-	}
-	defer httpRsp.Body.Close()
-
-	if err = googleapi.CheckResponse(httpRsp); err != nil {
-		return nil, err
-	}
-
-	buf, err := ioutil.ReadAll(httpRsp.Body)
-	if err != nil {
-		return nil, err
-	}
-
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	opts = append((*c.CallOptions).RemoveInstances[0:len((*c.CallOptions).RemoveInstances):len((*c.CallOptions).RemoveInstances)], opts...)
 	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
-	rsp := &computepb.Operation{}
+	resp := &computepb.Operation{}
+	e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("POST", baseUrl.String(), bytes.NewReader(jsonReq))
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
 
-	if err := unm.Unmarshal(buf, rsp); err != nil {
-		return nil, maybeUnknownEnum(err)
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		if err = googleapi.CheckResponse(httpRsp); err != nil {
+			return err
+		}
+
+		buf, err := ioutil.ReadAll(httpRsp.Body)
+		if err != nil {
+			return err
+		}
+
+		if err := unm.Unmarshal(buf, resp); err != nil {
+			return maybeUnknownEnum(err)
+		}
+
+		return nil
+	}, opts...)
+	if e != nil {
+		return nil, e
 	}
-	op := &Operation{proto: rsp}
-	return op, err
+	op := &Operation{
+		&zoneOperationsHandle{
+			c:       c.operationClient,
+			proto:   resp,
+			project: req.GetProject(),
+			zone:    req.GetZone(),
+		},
+	}
+	return op, nil
 }
 
 // SetNamedPorts sets the named ports for the specified instance group.
@@ -743,50 +920,71 @@ func (c *instanceGroupsRESTClient) SetNamedPorts(ctx context.Context, req *compu
 		return nil, err
 	}
 
-	baseUrl, _ := url.Parse(c.endpoint)
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return nil, err
+	}
 	baseUrl.Path += fmt.Sprintf("/compute/v1/projects/%v/zones/%v/instanceGroups/%v/setNamedPorts", req.GetProject(), req.GetZone(), req.GetInstanceGroup())
 
 	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
 	if req != nil && req.RequestId != nil {
 		params.Add("requestId", fmt.Sprintf("%v", req.GetRequestId()))
 	}
 
 	baseUrl.RawQuery = params.Encode()
 
-	httpReq, err := http.NewRequest("POST", baseUrl.String(), bytes.NewReader(jsonReq))
-	if err != nil {
-		return nil, err
-	}
-	httpReq = httpReq.WithContext(ctx)
-	// Set the headers
-	for k, v := range c.xGoogMetadata {
-		httpReq.Header[k] = v
-	}
-	httpReq.Header["Content-Type"] = []string{"application/json"}
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v&%s=%v&%s=%v", "project", url.QueryEscape(req.GetProject()), "zone", url.QueryEscape(req.GetZone()), "instance_group", url.QueryEscape(req.GetInstanceGroup())))
 
-	httpRsp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		return nil, err
-	}
-	defer httpRsp.Body.Close()
-
-	if err = googleapi.CheckResponse(httpRsp); err != nil {
-		return nil, err
-	}
-
-	buf, err := ioutil.ReadAll(httpRsp.Body)
-	if err != nil {
-		return nil, err
-	}
-
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	opts = append((*c.CallOptions).SetNamedPorts[0:len((*c.CallOptions).SetNamedPorts):len((*c.CallOptions).SetNamedPorts)], opts...)
 	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
-	rsp := &computepb.Operation{}
+	resp := &computepb.Operation{}
+	e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("POST", baseUrl.String(), bytes.NewReader(jsonReq))
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
 
-	if err := unm.Unmarshal(buf, rsp); err != nil {
-		return nil, maybeUnknownEnum(err)
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		if err = googleapi.CheckResponse(httpRsp); err != nil {
+			return err
+		}
+
+		buf, err := ioutil.ReadAll(httpRsp.Body)
+		if err != nil {
+			return err
+		}
+
+		if err := unm.Unmarshal(buf, resp); err != nil {
+			return maybeUnknownEnum(err)
+		}
+
+		return nil
+	}, opts...)
+	if e != nil {
+		return nil, e
 	}
-	op := &Operation{proto: rsp}
-	return op, err
+	op := &Operation{
+		&zoneOperationsHandle{
+			c:       c.operationClient,
+			proto:   resp,
+			project: req.GetProject(),
+			zone:    req.GetZone(),
+		},
+	}
+	return op, nil
 }
 
 // InstanceGroupIterator manages a stream of *computepb.InstanceGroup.

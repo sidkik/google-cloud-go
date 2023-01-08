@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,12 +20,17 @@ import (
 	"context"
 
 	compute "cloud.google.com/go/compute/apiv1"
+	computepb "cloud.google.com/go/compute/apiv1/computepb"
 	"google.golang.org/api/iterator"
-	computepb "google.golang.org/genproto/googleapis/cloud/compute/v1"
 )
 
 func ExampleNewTargetSslProxiesRESTClient() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewTargetSslProxiesRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -38,6 +43,11 @@ func ExampleNewTargetSslProxiesRESTClient() {
 
 func ExampleTargetSslProxiesClient_Delete() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewTargetSslProxiesRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -46,18 +56,26 @@ func ExampleTargetSslProxiesClient_Delete() {
 
 	req := &computepb.DeleteTargetSslProxyRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#DeleteTargetSslProxyRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#DeleteTargetSslProxyRequest.
 	}
-	resp, err := c.Delete(ctx, req)
+	op, err := c.Delete(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleTargetSslProxiesClient_Get() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewTargetSslProxiesRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -66,7 +84,7 @@ func ExampleTargetSslProxiesClient_Get() {
 
 	req := &computepb.GetTargetSslProxyRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#GetTargetSslProxyRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#GetTargetSslProxyRequest.
 	}
 	resp, err := c.Get(ctx, req)
 	if err != nil {
@@ -78,6 +96,11 @@ func ExampleTargetSslProxiesClient_Get() {
 
 func ExampleTargetSslProxiesClient_Insert() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewTargetSslProxiesRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -86,18 +109,26 @@ func ExampleTargetSslProxiesClient_Insert() {
 
 	req := &computepb.InsertTargetSslProxyRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#InsertTargetSslProxyRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#InsertTargetSslProxyRequest.
 	}
-	resp, err := c.Insert(ctx, req)
+	op, err := c.Insert(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleTargetSslProxiesClient_List() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewTargetSslProxiesRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -106,7 +137,7 @@ func ExampleTargetSslProxiesClient_List() {
 
 	req := &computepb.ListTargetSslProxiesRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#ListTargetSslProxiesRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#ListTargetSslProxiesRequest.
 	}
 	it := c.List(ctx, req)
 	for {
@@ -124,6 +155,11 @@ func ExampleTargetSslProxiesClient_List() {
 
 func ExampleTargetSslProxiesClient_SetBackendService() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewTargetSslProxiesRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -132,18 +168,54 @@ func ExampleTargetSslProxiesClient_SetBackendService() {
 
 	req := &computepb.SetBackendServiceTargetSslProxyRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#SetBackendServiceTargetSslProxyRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#SetBackendServiceTargetSslProxyRequest.
 	}
-	resp, err := c.SetBackendService(ctx, req)
+	op, err := c.SetBackendService(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+}
+
+func ExampleTargetSslProxiesClient_SetCertificateMap() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := compute.NewTargetSslProxiesRESTClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &computepb.SetCertificateMapTargetSslProxyRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#SetCertificateMapTargetSslProxyRequest.
+	}
+	op, err := c.SetCertificateMap(ctx, req)
+	if err != nil {
+		// TODO: Handle error.
+	}
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleTargetSslProxiesClient_SetProxyHeader() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewTargetSslProxiesRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -152,18 +224,26 @@ func ExampleTargetSslProxiesClient_SetProxyHeader() {
 
 	req := &computepb.SetProxyHeaderTargetSslProxyRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#SetProxyHeaderTargetSslProxyRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#SetProxyHeaderTargetSslProxyRequest.
 	}
-	resp, err := c.SetProxyHeader(ctx, req)
+	op, err := c.SetProxyHeader(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleTargetSslProxiesClient_SetSslCertificates() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewTargetSslProxiesRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -172,18 +252,26 @@ func ExampleTargetSslProxiesClient_SetSslCertificates() {
 
 	req := &computepb.SetSslCertificatesTargetSslProxyRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#SetSslCertificatesTargetSslProxyRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#SetSslCertificatesTargetSslProxyRequest.
 	}
-	resp, err := c.SetSslCertificates(ctx, req)
+	op, err := c.SetSslCertificates(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleTargetSslProxiesClient_SetSslPolicy() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewTargetSslProxiesRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -192,12 +280,15 @@ func ExampleTargetSslProxiesClient_SetSslPolicy() {
 
 	req := &computepb.SetSslPolicyTargetSslProxyRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#SetSslPolicyTargetSslProxyRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#SetSslPolicyTargetSslProxyRequest.
 	}
-	resp, err := c.SetSslPolicy(ctx, req)
+	op, err := c.SetSslPolicy(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }

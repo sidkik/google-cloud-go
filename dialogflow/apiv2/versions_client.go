@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,21 +17,29 @@
 package dialogflow
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"math"
+	"net/http"
 	"net/url"
 	"time"
 
+	dialogflowpb "cloud.google.com/go/dialogflow/apiv2/dialogflowpb"
 	gax "github.com/googleapis/gax-go/v2"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/api/option/internaloption"
 	gtransport "google.golang.org/api/transport/grpc"
-	dialogflowpb "google.golang.org/genproto/googleapis/cloud/dialogflow/v2"
+	httptransport "google.golang.org/api/transport/http"
+	locationpb "google.golang.org/genproto/googleapis/cloud/location"
+	longrunningpb "google.golang.org/genproto/googleapis/longrunning"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -39,11 +47,16 @@ var newVersionsClientHook clientHook
 
 // VersionsCallOptions contains the retry settings for each method of VersionsClient.
 type VersionsCallOptions struct {
-	ListVersions  []gax.CallOption
-	GetVersion    []gax.CallOption
-	CreateVersion []gax.CallOption
-	UpdateVersion []gax.CallOption
-	DeleteVersion []gax.CallOption
+	ListVersions    []gax.CallOption
+	GetVersion      []gax.CallOption
+	CreateVersion   []gax.CallOption
+	UpdateVersion   []gax.CallOption
+	DeleteVersion   []gax.CallOption
+	GetLocation     []gax.CallOption
+	ListLocations   []gax.CallOption
+	CancelOperation []gax.CallOption
+	GetOperation    []gax.CallOption
+	ListOperations  []gax.CallOption
 }
 
 func defaultVersionsGRPCClientOptions() []option.ClientOption {
@@ -53,7 +66,6 @@ func defaultVersionsGRPCClientOptions() []option.ClientOption {
 		internaloption.WithDefaultAudience("https://dialogflow.googleapis.com/"),
 		internaloption.WithDefaultScopes(DefaultAuthScopes()...),
 		internaloption.EnableJwtWithScope(),
-		option.WithGRPCDialOption(grpc.WithDisableServiceConfig()),
 		option.WithGRPCDialOption(grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(math.MaxInt32))),
 	}
@@ -116,10 +128,75 @@ func defaultVersionsCallOptions() *VersionsCallOptions {
 				})
 			}),
 		},
+		GetLocation:     []gax.CallOption{},
+		ListLocations:   []gax.CallOption{},
+		CancelOperation: []gax.CallOption{},
+		GetOperation:    []gax.CallOption{},
+		ListOperations:  []gax.CallOption{},
 	}
 }
 
-// internalVersionsClient is an interface that defines the methods availaible from Dialogflow API.
+func defaultVersionsRESTCallOptions() *VersionsCallOptions {
+	return &VersionsCallOptions{
+		ListVersions: []gax.CallOption{
+			gax.WithRetry(func() gax.Retryer {
+				return gax.OnHTTPCodes(gax.Backoff{
+					Initial:    100 * time.Millisecond,
+					Max:        60000 * time.Millisecond,
+					Multiplier: 1.30,
+				},
+					http.StatusServiceUnavailable)
+			}),
+		},
+		GetVersion: []gax.CallOption{
+			gax.WithRetry(func() gax.Retryer {
+				return gax.OnHTTPCodes(gax.Backoff{
+					Initial:    100 * time.Millisecond,
+					Max:        60000 * time.Millisecond,
+					Multiplier: 1.30,
+				},
+					http.StatusServiceUnavailable)
+			}),
+		},
+		CreateVersion: []gax.CallOption{
+			gax.WithRetry(func() gax.Retryer {
+				return gax.OnHTTPCodes(gax.Backoff{
+					Initial:    100 * time.Millisecond,
+					Max:        60000 * time.Millisecond,
+					Multiplier: 1.30,
+				},
+					http.StatusServiceUnavailable)
+			}),
+		},
+		UpdateVersion: []gax.CallOption{
+			gax.WithRetry(func() gax.Retryer {
+				return gax.OnHTTPCodes(gax.Backoff{
+					Initial:    100 * time.Millisecond,
+					Max:        60000 * time.Millisecond,
+					Multiplier: 1.30,
+				},
+					http.StatusServiceUnavailable)
+			}),
+		},
+		DeleteVersion: []gax.CallOption{
+			gax.WithRetry(func() gax.Retryer {
+				return gax.OnHTTPCodes(gax.Backoff{
+					Initial:    100 * time.Millisecond,
+					Max:        60000 * time.Millisecond,
+					Multiplier: 1.30,
+				},
+					http.StatusServiceUnavailable)
+			}),
+		},
+		GetLocation:     []gax.CallOption{},
+		ListLocations:   []gax.CallOption{},
+		CancelOperation: []gax.CallOption{},
+		GetOperation:    []gax.CallOption{},
+		ListOperations:  []gax.CallOption{},
+	}
+}
+
+// internalVersionsClient is an interface that defines the methods available from Dialogflow API.
 type internalVersionsClient interface {
 	Close() error
 	setGoogleClientInfo(...string)
@@ -129,6 +206,11 @@ type internalVersionsClient interface {
 	CreateVersion(context.Context, *dialogflowpb.CreateVersionRequest, ...gax.CallOption) (*dialogflowpb.Version, error)
 	UpdateVersion(context.Context, *dialogflowpb.UpdateVersionRequest, ...gax.CallOption) (*dialogflowpb.Version, error)
 	DeleteVersion(context.Context, *dialogflowpb.DeleteVersionRequest, ...gax.CallOption) error
+	GetLocation(context.Context, *locationpb.GetLocationRequest, ...gax.CallOption) (*locationpb.Location, error)
+	ListLocations(context.Context, *locationpb.ListLocationsRequest, ...gax.CallOption) *LocationIterator
+	CancelOperation(context.Context, *longrunningpb.CancelOperationRequest, ...gax.CallOption) error
+	GetOperation(context.Context, *longrunningpb.GetOperationRequest, ...gax.CallOption) (*longrunningpb.Operation, error)
+	ListOperations(context.Context, *longrunningpb.ListOperationsRequest, ...gax.CallOption) *OperationIterator
 }
 
 // VersionsClient is a client for interacting with Dialogflow API.
@@ -160,7 +242,8 @@ func (c *VersionsClient) setGoogleClientInfo(keyval ...string) {
 
 // Connection returns a connection to the API service.
 //
-// Deprecated.
+// Deprecated: Connections are now pooled so this method does not always
+// return the same resource.
 func (c *VersionsClient) Connection() *grpc.ClientConn {
 	return c.internalClient.Connection()
 }
@@ -196,6 +279,31 @@ func (c *VersionsClient) DeleteVersion(ctx context.Context, req *dialogflowpb.De
 	return c.internalClient.DeleteVersion(ctx, req, opts...)
 }
 
+// GetLocation gets information about a location.
+func (c *VersionsClient) GetLocation(ctx context.Context, req *locationpb.GetLocationRequest, opts ...gax.CallOption) (*locationpb.Location, error) {
+	return c.internalClient.GetLocation(ctx, req, opts...)
+}
+
+// ListLocations lists information about the supported locations for this service.
+func (c *VersionsClient) ListLocations(ctx context.Context, req *locationpb.ListLocationsRequest, opts ...gax.CallOption) *LocationIterator {
+	return c.internalClient.ListLocations(ctx, req, opts...)
+}
+
+// CancelOperation is a utility method from google.longrunning.Operations.
+func (c *VersionsClient) CancelOperation(ctx context.Context, req *longrunningpb.CancelOperationRequest, opts ...gax.CallOption) error {
+	return c.internalClient.CancelOperation(ctx, req, opts...)
+}
+
+// GetOperation is a utility method from google.longrunning.Operations.
+func (c *VersionsClient) GetOperation(ctx context.Context, req *longrunningpb.GetOperationRequest, opts ...gax.CallOption) (*longrunningpb.Operation, error) {
+	return c.internalClient.GetOperation(ctx, req, opts...)
+}
+
+// ListOperations is a utility method from google.longrunning.Operations.
+func (c *VersionsClient) ListOperations(ctx context.Context, req *longrunningpb.ListOperationsRequest, opts ...gax.CallOption) *OperationIterator {
+	return c.internalClient.ListOperations(ctx, req, opts...)
+}
+
 // versionsGRPCClient is a client for interacting with Dialogflow API over gRPC transport.
 //
 // Methods, except Close, may be called concurrently. However, fields must not be modified concurrently with method calls.
@@ -211,6 +319,10 @@ type versionsGRPCClient struct {
 
 	// The gRPC API client.
 	versionsClient dialogflowpb.VersionsClient
+
+	operationsClient longrunningpb.OperationsClient
+
+	locationsClient locationpb.LocationsClient
 
 	// The x-goog-* metadata to be sent with each request.
 	xGoogMetadata metadata.MD
@@ -246,6 +358,8 @@ func NewVersionsClient(ctx context.Context, opts ...option.ClientOption) (*Versi
 		disableDeadlines: disableDeadlines,
 		versionsClient:   dialogflowpb.NewVersionsClient(connPool),
 		CallOptions:      &client.CallOptions,
+		operationsClient: longrunningpb.NewOperationsClient(connPool),
+		locationsClient:  locationpb.NewLocationsClient(connPool),
 	}
 	c.setGoogleClientInfo()
 
@@ -256,7 +370,8 @@ func NewVersionsClient(ctx context.Context, opts ...option.ClientOption) (*Versi
 
 // Connection returns a connection to the API service.
 //
-// Deprecated.
+// Deprecated: Connections are now pooled so this method does not always
+// return the same resource.
 func (c *versionsGRPCClient) Connection() *grpc.ClientConn {
 	return c.connPool.Conn()
 }
@@ -266,7 +381,7 @@ func (c *versionsGRPCClient) Connection() *grpc.ClientConn {
 // use by Google-written clients.
 func (c *versionsGRPCClient) setGoogleClientInfo(keyval ...string) {
 	kv := append([]string{"gl-go", versionGo()}, keyval...)
-	kv = append(kv, "gapic", versionClient, "gax", gax.Version, "grpc", grpc.Version)
+	kv = append(kv, "gapic", getVersionClient(), "gax", gax.Version, "grpc", grpc.Version)
 	c.xGoogMetadata = metadata.Pairs("x-goog-api-client", gax.XGoogHeader(kv...))
 }
 
@@ -276,8 +391,77 @@ func (c *versionsGRPCClient) Close() error {
 	return c.connPool.Close()
 }
 
+// Methods, except Close, may be called concurrently. However, fields must not be modified concurrently with method calls.
+type versionsRESTClient struct {
+	// The http endpoint to connect to.
+	endpoint string
+
+	// The http client.
+	httpClient *http.Client
+
+	// The x-goog-* metadata to be sent with each request.
+	xGoogMetadata metadata.MD
+
+	// Points back to the CallOptions field of the containing VersionsClient
+	CallOptions **VersionsCallOptions
+}
+
+// NewVersionsRESTClient creates a new versions rest client.
+//
+// Service for managing Versions.
+func NewVersionsRESTClient(ctx context.Context, opts ...option.ClientOption) (*VersionsClient, error) {
+	clientOpts := append(defaultVersionsRESTClientOptions(), opts...)
+	httpClient, endpoint, err := httptransport.NewClient(ctx, clientOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	callOpts := defaultVersionsRESTCallOptions()
+	c := &versionsRESTClient{
+		endpoint:    endpoint,
+		httpClient:  httpClient,
+		CallOptions: &callOpts,
+	}
+	c.setGoogleClientInfo()
+
+	return &VersionsClient{internalClient: c, CallOptions: callOpts}, nil
+}
+
+func defaultVersionsRESTClientOptions() []option.ClientOption {
+	return []option.ClientOption{
+		internaloption.WithDefaultEndpoint("https://dialogflow.googleapis.com"),
+		internaloption.WithDefaultMTLSEndpoint("https://dialogflow.mtls.googleapis.com"),
+		internaloption.WithDefaultAudience("https://dialogflow.googleapis.com/"),
+		internaloption.WithDefaultScopes(DefaultAuthScopes()...),
+	}
+}
+
+// setGoogleClientInfo sets the name and version of the application in
+// the `x-goog-api-client` header passed on each request. Intended for
+// use by Google-written clients.
+func (c *versionsRESTClient) setGoogleClientInfo(keyval ...string) {
+	kv := append([]string{"gl-go", versionGo()}, keyval...)
+	kv = append(kv, "gapic", getVersionClient(), "gax", gax.Version, "rest", "UNKNOWN")
+	c.xGoogMetadata = metadata.Pairs("x-goog-api-client", gax.XGoogHeader(kv...))
+}
+
+// Close closes the connection to the API service. The user should invoke this when
+// the client is no longer required.
+func (c *versionsRESTClient) Close() error {
+	// Replace httpClient with nil to force cleanup.
+	c.httpClient = nil
+	return nil
+}
+
+// Connection returns a connection to the API service.
+//
+// Deprecated: This method always returns nil.
+func (c *versionsRESTClient) Connection() *grpc.ClientConn {
+	return nil
+}
 func (c *versionsGRPCClient) ListVersions(ctx context.Context, req *dialogflowpb.ListVersionsRequest, opts ...gax.CallOption) *VersionIterator {
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).ListVersions[0:len((*c.CallOptions).ListVersions):len((*c.CallOptions).ListVersions)], opts...)
 	it := &VersionIterator{}
@@ -327,6 +511,7 @@ func (c *versionsGRPCClient) GetVersion(ctx context.Context, req *dialogflowpb.G
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).GetVersion[0:len((*c.CallOptions).GetVersion):len((*c.CallOptions).GetVersion)], opts...)
 	var resp *dialogflowpb.Version
@@ -348,6 +533,7 @@ func (c *versionsGRPCClient) CreateVersion(ctx context.Context, req *dialogflowp
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).CreateVersion[0:len((*c.CallOptions).CreateVersion):len((*c.CallOptions).CreateVersion)], opts...)
 	var resp *dialogflowpb.Version
@@ -369,6 +555,7 @@ func (c *versionsGRPCClient) UpdateVersion(ctx context.Context, req *dialogflowp
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "version.name", url.QueryEscape(req.GetVersion().GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).UpdateVersion[0:len((*c.CallOptions).UpdateVersion):len((*c.CallOptions).UpdateVersion)], opts...)
 	var resp *dialogflowpb.Version
@@ -390,6 +577,7 @@ func (c *versionsGRPCClient) DeleteVersion(ctx context.Context, req *dialogflowp
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).DeleteVersion[0:len((*c.CallOptions).DeleteVersion):len((*c.CallOptions).DeleteVersion)], opts...)
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
@@ -398,6 +586,810 @@ func (c *versionsGRPCClient) DeleteVersion(ctx context.Context, req *dialogflowp
 		return err
 	}, opts...)
 	return err
+}
+
+func (c *versionsGRPCClient) GetLocation(ctx context.Context, req *locationpb.GetLocationRequest, opts ...gax.CallOption) (*locationpb.Location, error) {
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
+	opts = append((*c.CallOptions).GetLocation[0:len((*c.CallOptions).GetLocation):len((*c.CallOptions).GetLocation)], opts...)
+	var resp *locationpb.Location
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		resp, err = c.locationsClient.GetLocation(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (c *versionsGRPCClient) ListLocations(ctx context.Context, req *locationpb.ListLocationsRequest, opts ...gax.CallOption) *LocationIterator {
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
+	opts = append((*c.CallOptions).ListLocations[0:len((*c.CallOptions).ListLocations):len((*c.CallOptions).ListLocations)], opts...)
+	it := &LocationIterator{}
+	req = proto.Clone(req).(*locationpb.ListLocationsRequest)
+	it.InternalFetch = func(pageSize int, pageToken string) ([]*locationpb.Location, string, error) {
+		resp := &locationpb.ListLocationsResponse{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
+		if pageSize > math.MaxInt32 {
+			req.PageSize = math.MaxInt32
+		} else if pageSize != 0 {
+			req.PageSize = int32(pageSize)
+		}
+		err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+			var err error
+			resp, err = c.locationsClient.ListLocations(ctx, req, settings.GRPC...)
+			return err
+		}, opts...)
+		if err != nil {
+			return nil, "", err
+		}
+
+		it.Response = resp
+		return resp.GetLocations(), resp.GetNextPageToken(), nil
+	}
+	fetch := func(pageSize int, pageToken string) (string, error) {
+		items, nextPageToken, err := it.InternalFetch(pageSize, pageToken)
+		if err != nil {
+			return "", err
+		}
+		it.items = append(it.items, items...)
+		return nextPageToken, nil
+	}
+
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
+	it.pageInfo.MaxSize = int(req.GetPageSize())
+	it.pageInfo.Token = req.GetPageToken()
+
+	return it
+}
+
+func (c *versionsGRPCClient) CancelOperation(ctx context.Context, req *longrunningpb.CancelOperationRequest, opts ...gax.CallOption) error {
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
+	opts = append((*c.CallOptions).CancelOperation[0:len((*c.CallOptions).CancelOperation):len((*c.CallOptions).CancelOperation)], opts...)
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		_, err = c.operationsClient.CancelOperation(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	return err
+}
+
+func (c *versionsGRPCClient) GetOperation(ctx context.Context, req *longrunningpb.GetOperationRequest, opts ...gax.CallOption) (*longrunningpb.Operation, error) {
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
+	opts = append((*c.CallOptions).GetOperation[0:len((*c.CallOptions).GetOperation):len((*c.CallOptions).GetOperation)], opts...)
+	var resp *longrunningpb.Operation
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		resp, err = c.operationsClient.GetOperation(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (c *versionsGRPCClient) ListOperations(ctx context.Context, req *longrunningpb.ListOperationsRequest, opts ...gax.CallOption) *OperationIterator {
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
+	opts = append((*c.CallOptions).ListOperations[0:len((*c.CallOptions).ListOperations):len((*c.CallOptions).ListOperations)], opts...)
+	it := &OperationIterator{}
+	req = proto.Clone(req).(*longrunningpb.ListOperationsRequest)
+	it.InternalFetch = func(pageSize int, pageToken string) ([]*longrunningpb.Operation, string, error) {
+		resp := &longrunningpb.ListOperationsResponse{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
+		if pageSize > math.MaxInt32 {
+			req.PageSize = math.MaxInt32
+		} else if pageSize != 0 {
+			req.PageSize = int32(pageSize)
+		}
+		err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+			var err error
+			resp, err = c.operationsClient.ListOperations(ctx, req, settings.GRPC...)
+			return err
+		}, opts...)
+		if err != nil {
+			return nil, "", err
+		}
+
+		it.Response = resp
+		return resp.GetOperations(), resp.GetNextPageToken(), nil
+	}
+	fetch := func(pageSize int, pageToken string) (string, error) {
+		items, nextPageToken, err := it.InternalFetch(pageSize, pageToken)
+		if err != nil {
+			return "", err
+		}
+		it.items = append(it.items, items...)
+		return nextPageToken, nil
+	}
+
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
+	it.pageInfo.MaxSize = int(req.GetPageSize())
+	it.pageInfo.Token = req.GetPageToken()
+
+	return it
+}
+
+// ListVersions returns the list of all versions of the specified agent.
+func (c *versionsRESTClient) ListVersions(ctx context.Context, req *dialogflowpb.ListVersionsRequest, opts ...gax.CallOption) *VersionIterator {
+	it := &VersionIterator{}
+	req = proto.Clone(req).(*dialogflowpb.ListVersionsRequest)
+	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	it.InternalFetch = func(pageSize int, pageToken string) ([]*dialogflowpb.Version, string, error) {
+		resp := &dialogflowpb.ListVersionsResponse{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
+		if pageSize > math.MaxInt32 {
+			req.PageSize = math.MaxInt32
+		} else if pageSize != 0 {
+			req.PageSize = int32(pageSize)
+		}
+		baseUrl, err := url.Parse(c.endpoint)
+		if err != nil {
+			return nil, "", err
+		}
+		baseUrl.Path += fmt.Sprintf("/v2/%v/versions", req.GetParent())
+
+		params := url.Values{}
+		params.Add("$alt", "json;enum-encoding=int")
+		if req.GetPageSize() != 0 {
+			params.Add("pageSize", fmt.Sprintf("%v", req.GetPageSize()))
+		}
+		if req.GetPageToken() != "" {
+			params.Add("pageToken", fmt.Sprintf("%v", req.GetPageToken()))
+		}
+
+		baseUrl.RawQuery = params.Encode()
+
+		// Build HTTP headers from client and context metadata.
+		headers := buildHeaders(ctx, c.xGoogMetadata, metadata.Pairs("Content-Type", "application/json"))
+		e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+			if settings.Path != "" {
+				baseUrl.Path = settings.Path
+			}
+			httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
+			if err != nil {
+				return err
+			}
+			httpReq.Header = headers
+
+			httpRsp, err := c.httpClient.Do(httpReq)
+			if err != nil {
+				return err
+			}
+			defer httpRsp.Body.Close()
+
+			if err = googleapi.CheckResponse(httpRsp); err != nil {
+				return err
+			}
+
+			buf, err := ioutil.ReadAll(httpRsp.Body)
+			if err != nil {
+				return err
+			}
+
+			if err := unm.Unmarshal(buf, resp); err != nil {
+				return maybeUnknownEnum(err)
+			}
+
+			return nil
+		}, opts...)
+		if e != nil {
+			return nil, "", e
+		}
+		it.Response = resp
+		return resp.GetVersions(), resp.GetNextPageToken(), nil
+	}
+
+	fetch := func(pageSize int, pageToken string) (string, error) {
+		items, nextPageToken, err := it.InternalFetch(pageSize, pageToken)
+		if err != nil {
+			return "", err
+		}
+		it.items = append(it.items, items...)
+		return nextPageToken, nil
+	}
+
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
+	it.pageInfo.MaxSize = int(req.GetPageSize())
+	it.pageInfo.Token = req.GetPageToken()
+
+	return it
+}
+
+// GetVersion retrieves the specified agent version.
+func (c *versionsRESTClient) GetVersion(ctx context.Context, req *dialogflowpb.GetVersionRequest, opts ...gax.CallOption) (*dialogflowpb.Version, error) {
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return nil, err
+	}
+	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
+
+	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
+
+	baseUrl.RawQuery = params.Encode()
+
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	opts = append((*c.CallOptions).GetVersion[0:len((*c.CallOptions).GetVersion):len((*c.CallOptions).GetVersion)], opts...)
+	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	resp := &dialogflowpb.Version{}
+	e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
+
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		if err = googleapi.CheckResponse(httpRsp); err != nil {
+			return err
+		}
+
+		buf, err := ioutil.ReadAll(httpRsp.Body)
+		if err != nil {
+			return err
+		}
+
+		if err := unm.Unmarshal(buf, resp); err != nil {
+			return maybeUnknownEnum(err)
+		}
+
+		return nil
+	}, opts...)
+	if e != nil {
+		return nil, e
+	}
+	return resp, nil
+}
+
+// CreateVersion creates an agent version.
+//
+// The new version points to the agent instance in the “default” environment.
+func (c *versionsRESTClient) CreateVersion(ctx context.Context, req *dialogflowpb.CreateVersionRequest, opts ...gax.CallOption) (*dialogflowpb.Version, error) {
+	m := protojson.MarshalOptions{AllowPartial: true, UseEnumNumbers: true}
+	body := req.GetVersion()
+	jsonReq, err := m.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return nil, err
+	}
+	baseUrl.Path += fmt.Sprintf("/v2/%v/versions", req.GetParent())
+
+	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
+
+	baseUrl.RawQuery = params.Encode()
+
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
+
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	opts = append((*c.CallOptions).CreateVersion[0:len((*c.CallOptions).CreateVersion):len((*c.CallOptions).CreateVersion)], opts...)
+	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	resp := &dialogflowpb.Version{}
+	e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("POST", baseUrl.String(), bytes.NewReader(jsonReq))
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
+
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		if err = googleapi.CheckResponse(httpRsp); err != nil {
+			return err
+		}
+
+		buf, err := ioutil.ReadAll(httpRsp.Body)
+		if err != nil {
+			return err
+		}
+
+		if err := unm.Unmarshal(buf, resp); err != nil {
+			return maybeUnknownEnum(err)
+		}
+
+		return nil
+	}, opts...)
+	if e != nil {
+		return nil, e
+	}
+	return resp, nil
+}
+
+// UpdateVersion updates the specified agent version.
+//
+// Note that this method does not allow you to update the state of the agent
+// the given version points to. It allows you to update only mutable
+// properties of the version resource.
+func (c *versionsRESTClient) UpdateVersion(ctx context.Context, req *dialogflowpb.UpdateVersionRequest, opts ...gax.CallOption) (*dialogflowpb.Version, error) {
+	m := protojson.MarshalOptions{AllowPartial: true, UseEnumNumbers: true}
+	body := req.GetVersion()
+	jsonReq, err := m.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return nil, err
+	}
+	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetVersion().GetName())
+
+	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
+	if req.GetUpdateMask() != nil {
+		updateMask, err := protojson.Marshal(req.GetUpdateMask())
+		if err != nil {
+			return nil, err
+		}
+		params.Add("updateMask", string(updateMask))
+	}
+
+	baseUrl.RawQuery = params.Encode()
+
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "version.name", url.QueryEscape(req.GetVersion().GetName())))
+
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	opts = append((*c.CallOptions).UpdateVersion[0:len((*c.CallOptions).UpdateVersion):len((*c.CallOptions).UpdateVersion)], opts...)
+	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	resp := &dialogflowpb.Version{}
+	e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("PATCH", baseUrl.String(), bytes.NewReader(jsonReq))
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
+
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		if err = googleapi.CheckResponse(httpRsp); err != nil {
+			return err
+		}
+
+		buf, err := ioutil.ReadAll(httpRsp.Body)
+		if err != nil {
+			return err
+		}
+
+		if err := unm.Unmarshal(buf, resp); err != nil {
+			return maybeUnknownEnum(err)
+		}
+
+		return nil
+	}, opts...)
+	if e != nil {
+		return nil, e
+	}
+	return resp, nil
+}
+
+// DeleteVersion delete the specified agent version.
+func (c *versionsRESTClient) DeleteVersion(ctx context.Context, req *dialogflowpb.DeleteVersionRequest, opts ...gax.CallOption) error {
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return err
+	}
+	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
+
+	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
+
+	baseUrl.RawQuery = params.Encode()
+
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	return gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("DELETE", baseUrl.String(), nil)
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
+
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		// Returns nil if there is no error, otherwise wraps
+		// the response code and body into a non-nil error
+		return googleapi.CheckResponse(httpRsp)
+	}, opts...)
+}
+
+// GetLocation gets information about a location.
+func (c *versionsRESTClient) GetLocation(ctx context.Context, req *locationpb.GetLocationRequest, opts ...gax.CallOption) (*locationpb.Location, error) {
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return nil, err
+	}
+	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
+
+	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
+
+	baseUrl.RawQuery = params.Encode()
+
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	opts = append((*c.CallOptions).GetLocation[0:len((*c.CallOptions).GetLocation):len((*c.CallOptions).GetLocation)], opts...)
+	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	resp := &locationpb.Location{}
+	e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
+
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		if err = googleapi.CheckResponse(httpRsp); err != nil {
+			return err
+		}
+
+		buf, err := ioutil.ReadAll(httpRsp.Body)
+		if err != nil {
+			return err
+		}
+
+		if err := unm.Unmarshal(buf, resp); err != nil {
+			return maybeUnknownEnum(err)
+		}
+
+		return nil
+	}, opts...)
+	if e != nil {
+		return nil, e
+	}
+	return resp, nil
+}
+
+// ListLocations lists information about the supported locations for this service.
+func (c *versionsRESTClient) ListLocations(ctx context.Context, req *locationpb.ListLocationsRequest, opts ...gax.CallOption) *LocationIterator {
+	it := &LocationIterator{}
+	req = proto.Clone(req).(*locationpb.ListLocationsRequest)
+	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	it.InternalFetch = func(pageSize int, pageToken string) ([]*locationpb.Location, string, error) {
+		resp := &locationpb.ListLocationsResponse{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
+		if pageSize > math.MaxInt32 {
+			req.PageSize = math.MaxInt32
+		} else if pageSize != 0 {
+			req.PageSize = int32(pageSize)
+		}
+		baseUrl, err := url.Parse(c.endpoint)
+		if err != nil {
+			return nil, "", err
+		}
+		baseUrl.Path += fmt.Sprintf("/v2/%v/locations", req.GetName())
+
+		params := url.Values{}
+		params.Add("$alt", "json;enum-encoding=int")
+		if req.GetFilter() != "" {
+			params.Add("filter", fmt.Sprintf("%v", req.GetFilter()))
+		}
+		if req.GetPageSize() != 0 {
+			params.Add("pageSize", fmt.Sprintf("%v", req.GetPageSize()))
+		}
+		if req.GetPageToken() != "" {
+			params.Add("pageToken", fmt.Sprintf("%v", req.GetPageToken()))
+		}
+
+		baseUrl.RawQuery = params.Encode()
+
+		// Build HTTP headers from client and context metadata.
+		headers := buildHeaders(ctx, c.xGoogMetadata, metadata.Pairs("Content-Type", "application/json"))
+		e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+			if settings.Path != "" {
+				baseUrl.Path = settings.Path
+			}
+			httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
+			if err != nil {
+				return err
+			}
+			httpReq.Header = headers
+
+			httpRsp, err := c.httpClient.Do(httpReq)
+			if err != nil {
+				return err
+			}
+			defer httpRsp.Body.Close()
+
+			if err = googleapi.CheckResponse(httpRsp); err != nil {
+				return err
+			}
+
+			buf, err := ioutil.ReadAll(httpRsp.Body)
+			if err != nil {
+				return err
+			}
+
+			if err := unm.Unmarshal(buf, resp); err != nil {
+				return maybeUnknownEnum(err)
+			}
+
+			return nil
+		}, opts...)
+		if e != nil {
+			return nil, "", e
+		}
+		it.Response = resp
+		return resp.GetLocations(), resp.GetNextPageToken(), nil
+	}
+
+	fetch := func(pageSize int, pageToken string) (string, error) {
+		items, nextPageToken, err := it.InternalFetch(pageSize, pageToken)
+		if err != nil {
+			return "", err
+		}
+		it.items = append(it.items, items...)
+		return nextPageToken, nil
+	}
+
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
+	it.pageInfo.MaxSize = int(req.GetPageSize())
+	it.pageInfo.Token = req.GetPageToken()
+
+	return it
+}
+
+// CancelOperation is a utility method from google.longrunning.Operations.
+func (c *versionsRESTClient) CancelOperation(ctx context.Context, req *longrunningpb.CancelOperationRequest, opts ...gax.CallOption) error {
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return err
+	}
+	baseUrl.Path += fmt.Sprintf("/v2/%v:cancel", req.GetName())
+
+	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
+
+	baseUrl.RawQuery = params.Encode()
+
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	return gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("POST", baseUrl.String(), nil)
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
+
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		// Returns nil if there is no error, otherwise wraps
+		// the response code and body into a non-nil error
+		return googleapi.CheckResponse(httpRsp)
+	}, opts...)
+}
+
+// GetOperation is a utility method from google.longrunning.Operations.
+func (c *versionsRESTClient) GetOperation(ctx context.Context, req *longrunningpb.GetOperationRequest, opts ...gax.CallOption) (*longrunningpb.Operation, error) {
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return nil, err
+	}
+	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
+
+	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
+
+	baseUrl.RawQuery = params.Encode()
+
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	opts = append((*c.CallOptions).GetOperation[0:len((*c.CallOptions).GetOperation):len((*c.CallOptions).GetOperation)], opts...)
+	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	resp := &longrunningpb.Operation{}
+	e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
+
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		if err = googleapi.CheckResponse(httpRsp); err != nil {
+			return err
+		}
+
+		buf, err := ioutil.ReadAll(httpRsp.Body)
+		if err != nil {
+			return err
+		}
+
+		if err := unm.Unmarshal(buf, resp); err != nil {
+			return maybeUnknownEnum(err)
+		}
+
+		return nil
+	}, opts...)
+	if e != nil {
+		return nil, e
+	}
+	return resp, nil
+}
+
+// ListOperations is a utility method from google.longrunning.Operations.
+func (c *versionsRESTClient) ListOperations(ctx context.Context, req *longrunningpb.ListOperationsRequest, opts ...gax.CallOption) *OperationIterator {
+	it := &OperationIterator{}
+	req = proto.Clone(req).(*longrunningpb.ListOperationsRequest)
+	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	it.InternalFetch = func(pageSize int, pageToken string) ([]*longrunningpb.Operation, string, error) {
+		resp := &longrunningpb.ListOperationsResponse{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
+		if pageSize > math.MaxInt32 {
+			req.PageSize = math.MaxInt32
+		} else if pageSize != 0 {
+			req.PageSize = int32(pageSize)
+		}
+		baseUrl, err := url.Parse(c.endpoint)
+		if err != nil {
+			return nil, "", err
+		}
+		baseUrl.Path += fmt.Sprintf("/v2/%v/operations", req.GetName())
+
+		params := url.Values{}
+		params.Add("$alt", "json;enum-encoding=int")
+		if req.GetFilter() != "" {
+			params.Add("filter", fmt.Sprintf("%v", req.GetFilter()))
+		}
+		if req.GetPageSize() != 0 {
+			params.Add("pageSize", fmt.Sprintf("%v", req.GetPageSize()))
+		}
+		if req.GetPageToken() != "" {
+			params.Add("pageToken", fmt.Sprintf("%v", req.GetPageToken()))
+		}
+
+		baseUrl.RawQuery = params.Encode()
+
+		// Build HTTP headers from client and context metadata.
+		headers := buildHeaders(ctx, c.xGoogMetadata, metadata.Pairs("Content-Type", "application/json"))
+		e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+			if settings.Path != "" {
+				baseUrl.Path = settings.Path
+			}
+			httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
+			if err != nil {
+				return err
+			}
+			httpReq.Header = headers
+
+			httpRsp, err := c.httpClient.Do(httpReq)
+			if err != nil {
+				return err
+			}
+			defer httpRsp.Body.Close()
+
+			if err = googleapi.CheckResponse(httpRsp); err != nil {
+				return err
+			}
+
+			buf, err := ioutil.ReadAll(httpRsp.Body)
+			if err != nil {
+				return err
+			}
+
+			if err := unm.Unmarshal(buf, resp); err != nil {
+				return maybeUnknownEnum(err)
+			}
+
+			return nil
+		}, opts...)
+		if e != nil {
+			return nil, "", e
+		}
+		it.Response = resp
+		return resp.GetOperations(), resp.GetNextPageToken(), nil
+	}
+
+	fetch := func(pageSize int, pageToken string) (string, error) {
+		items, nextPageToken, err := it.InternalFetch(pageSize, pageToken)
+		if err != nil {
+			return "", err
+		}
+		it.items = append(it.items, items...)
+		return nextPageToken, nil
+	}
+
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
+	it.pageInfo.MaxSize = int(req.GetPageSize())
+	it.pageInfo.Token = req.GetPageToken()
+
+	return it
 }
 
 // VersionIterator manages a stream of *dialogflowpb.Version.

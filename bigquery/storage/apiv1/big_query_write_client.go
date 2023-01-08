@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,11 +23,11 @@ import (
 	"net/url"
 	"time"
 
+	storagepb "cloud.google.com/go/bigquery/storage/apiv1/storagepb"
 	gax "github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/option"
 	"google.golang.org/api/option/internaloption"
 	gtransport "google.golang.org/api/transport/grpc"
-	storagepb "google.golang.org/genproto/googleapis/cloud/bigquery/storage/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -52,7 +52,6 @@ func defaultBigQueryWriteGRPCClientOptions() []option.ClientOption {
 		internaloption.WithDefaultAudience("https://bigquerystorage.googleapis.com/"),
 		internaloption.WithDefaultScopes(DefaultAuthScopes()...),
 		internaloption.EnableJwtWithScope(),
-		option.WithGRPCDialOption(grpc.WithDisableServiceConfig()),
 		option.WithGRPCDialOption(grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(math.MaxInt32))),
 	}
@@ -65,9 +64,10 @@ func defaultBigQueryWriteCallOptions() *BigQueryWriteCallOptions {
 				return gax.OnCodes([]codes.Code{
 					codes.DeadlineExceeded,
 					codes.Unavailable,
+					codes.ResourceExhausted,
 				}, gax.Backoff{
-					Initial:    100 * time.Millisecond,
-					Max:        60000 * time.Millisecond,
+					Initial:    10000 * time.Millisecond,
+					Max:        120000 * time.Millisecond,
 					Multiplier: 1.30,
 				})
 			}),
@@ -134,7 +134,7 @@ func defaultBigQueryWriteCallOptions() *BigQueryWriteCallOptions {
 	}
 }
 
-// internalBigQueryWriteClient is an interface that defines the methods availaible from BigQuery Storage API.
+// internalBigQueryWriteClient is an interface that defines the methods available from BigQuery Storage API.
 type internalBigQueryWriteClient interface {
 	Close() error
 	setGoogleClientInfo(...string)
@@ -181,7 +181,8 @@ func (c *BigQueryWriteClient) setGoogleClientInfo(keyval ...string) {
 
 // Connection returns a connection to the API service.
 //
-// Deprecated.
+// Deprecated: Connections are now pooled so this method does not always
+// return the same resource.
 func (c *BigQueryWriteClient) Connection() *grpc.ClientConn {
 	return c.internalClient.Connection()
 }
@@ -218,15 +219,15 @@ func (c *BigQueryWriteClient) CreateWriteStream(ctx context.Context, req *storag
 // The specifics of when successfully appended data is made visible to the
 // table are governed by the type of stream:
 //
-//   For COMMITTED streams (which includes the default stream), data is
-//   visible immediately upon successful append.
+//	For COMMITTED streams (which includes the default stream), data is
+//	visible immediately upon successful append.
 //
-//   For BUFFERED streams, data is made visible via a subsequent FlushRows
-//   rpc which advances a cursor to a newer offset in the stream.
+//	For BUFFERED streams, data is made visible via a subsequent FlushRows
+//	rpc which advances a cursor to a newer offset in the stream.
 //
-//   For PENDING streams, data is not made visible until the stream itself is
-//   finalized (via the FinalizeWriteStream rpc), and the stream is explicitly
-//   committed via the BatchCommitWriteStreams rpc.
+//	For PENDING streams, data is not made visible until the stream itself is
+//	finalized (via the FinalizeWriteStream rpc), and the stream is explicitly
+//	committed via the BatchCommitWriteStreams rpc.
 func (c *BigQueryWriteClient) AppendRows(ctx context.Context, opts ...gax.CallOption) (storagepb.BigQueryWrite_AppendRowsClient, error) {
 	return c.internalClient.AppendRows(ctx, opts...)
 }
@@ -329,7 +330,8 @@ func NewBigQueryWriteClient(ctx context.Context, opts ...option.ClientOption) (*
 
 // Connection returns a connection to the API service.
 //
-// Deprecated.
+// Deprecated: Connections are now pooled so this method does not always
+// return the same resource.
 func (c *bigQueryWriteGRPCClient) Connection() *grpc.ClientConn {
 	return c.connPool.Conn()
 }
@@ -339,7 +341,7 @@ func (c *bigQueryWriteGRPCClient) Connection() *grpc.ClientConn {
 // use by Google-written clients.
 func (c *bigQueryWriteGRPCClient) setGoogleClientInfo(keyval ...string) {
 	kv := append([]string{"gl-go", versionGo()}, keyval...)
-	kv = append(kv, "gapic", versionClient, "gax", gax.Version, "grpc", grpc.Version)
+	kv = append(kv, "gapic", getVersionClient(), "gax", gax.Version, "grpc", grpc.Version)
 	c.xGoogMetadata = metadata.Pairs("x-goog-api-client", gax.XGoogHeader(kv...))
 }
 
@@ -351,11 +353,12 @@ func (c *bigQueryWriteGRPCClient) Close() error {
 
 func (c *bigQueryWriteGRPCClient) CreateWriteStream(ctx context.Context, req *storagepb.CreateWriteStreamRequest, opts ...gax.CallOption) (*storagepb.WriteStream, error) {
 	if _, ok := ctx.Deadline(); !ok && !c.disableDeadlines {
-		cctx, cancel := context.WithTimeout(ctx, 600000*time.Millisecond)
+		cctx, cancel := context.WithTimeout(ctx, 1200000*time.Millisecond)
 		defer cancel()
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).CreateWriteStream[0:len((*c.CallOptions).CreateWriteStream):len((*c.CallOptions).CreateWriteStream)], opts...)
 	var resp *storagepb.WriteStream
@@ -392,6 +395,7 @@ func (c *bigQueryWriteGRPCClient) GetWriteStream(ctx context.Context, req *stora
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).GetWriteStream[0:len((*c.CallOptions).GetWriteStream):len((*c.CallOptions).GetWriteStream)], opts...)
 	var resp *storagepb.WriteStream
@@ -413,6 +417,7 @@ func (c *bigQueryWriteGRPCClient) FinalizeWriteStream(ctx context.Context, req *
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).FinalizeWriteStream[0:len((*c.CallOptions).FinalizeWriteStream):len((*c.CallOptions).FinalizeWriteStream)], opts...)
 	var resp *storagepb.FinalizeWriteStreamResponse
@@ -434,6 +439,7 @@ func (c *bigQueryWriteGRPCClient) BatchCommitWriteStreams(ctx context.Context, r
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).BatchCommitWriteStreams[0:len((*c.CallOptions).BatchCommitWriteStreams):len((*c.CallOptions).BatchCommitWriteStreams)], opts...)
 	var resp *storagepb.BatchCommitWriteStreamsResponse
@@ -455,6 +461,7 @@ func (c *bigQueryWriteGRPCClient) FlushRows(ctx context.Context, req *storagepb.
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "write_stream", url.QueryEscape(req.GetWriteStream())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).FlushRows[0:len((*c.CallOptions).FlushRows):len((*c.CallOptions).FlushRows)], opts...)
 	var resp *storagepb.FlushRowsResponse

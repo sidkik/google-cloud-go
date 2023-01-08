@@ -16,9 +16,16 @@ package managedwriter
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"testing"
 	"time"
+
+	"cloud.google.com/go/bigquery/storage/apiv1/storagepb"
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/genproto/googleapis/cloud/bigquery/storage/v1"
+	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func TestAppendResult(t *testing.T) {
@@ -37,44 +44,40 @@ func TestAppendResult(t *testing.T) {
 }
 
 func TestPendingWrite(t *testing.T) {
+	ctx := context.Background()
 	wantRowData := [][]byte{
 		[]byte("row1"),
 		[]byte("row2"),
 		[]byte("row3"),
 	}
 
-	var wantOffset int64 = 99
-
-	// first, verify no offset behavior
-	pending := newPendingWrite(wantRowData, NoStreamOffset)
+	// verify no offset behavior
+	pending := newPendingWrite(ctx, wantRowData)
 	if pending.request.GetOffset() != nil {
 		t.Errorf("request should have no offset, but is present: %q", pending.request.GetOffset().GetValue())
 	}
-	pending.markDone(NoStreamOffset, nil, nil)
-	if pending.result.offset != NoStreamOffset {
-		t.Errorf("mismatch on completed AppendResult without offset: got %d want %d", pending.result.offset, NoStreamOffset)
-	}
-	if pending.result.err != nil {
-		t.Errorf("mismatch in error on AppendResult, got %v want nil", pending.result.err)
-	}
 
-	// now, verify behavior with a valid offset
-	pending = newPendingWrite(wantRowData, 99)
-	if pending.request.GetOffset() == nil {
-		t.Errorf("offset not set, should be %d", wantOffset)
-	}
-	if gotOffset := pending.request.GetOffset().GetValue(); gotOffset != wantOffset {
-		t.Errorf("offset mismatch, got %d want %d", gotOffset, wantOffset)
-	}
-
-	// check request shape
 	gotRowCount := len(pending.request.GetProtoRows().GetRows().GetSerializedRows())
 	if gotRowCount != len(wantRowData) {
 		t.Errorf("pendingWrite request mismatch, got %d rows, want %d rows", gotRowCount, len(wantRowData))
 	}
 
-	// verify AppendResult
+	// Verify request is not acknowledged.
+	select {
+	case <-pending.result.Ready():
+		t.Errorf("got Ready() on incomplete AppendResult")
+	case <-time.After(100 * time.Millisecond):
 
+	}
+
+	// Mark completed, verify result.
+	pending.markDone(&storage.AppendRowsResponse{}, nil, nil)
+	if gotOff := pending.result.offset(ctx); gotOff != NoStreamOffset {
+		t.Errorf("mismatch on completed AppendResult without offset: got %d want %d", gotOff, NoStreamOffset)
+	}
+	if pending.result.err != nil {
+		t.Errorf("mismatch in error on AppendResult, got %v want nil", pending.result.err)
+	}
 	gotData := pending.result.rowData
 	if len(gotData) != len(wantRowData) {
 		t.Errorf("length mismatch on appendresult, got %d, want %d", len(gotData), len(wantRowData))
@@ -84,17 +87,36 @@ func TestPendingWrite(t *testing.T) {
 			t.Errorf("row %d mismatch in data: got %q want %q", i, gotData[i], wantRowData[i])
 		}
 	}
-	select {
-	case <-pending.result.Ready():
-		t.Errorf("got Ready() on incomplete AppendResult")
-	case <-time.After(100 * time.Millisecond):
 
+	// Create new write to verify error result.
+	pending = newPendingWrite(ctx, wantRowData)
+
+	// Manually invoke option to apply offset to request.
+	// This would normally be appied as part of the AppendRows() method on the managed stream.
+	wantOffset := int64(101)
+	f := WithOffset(wantOffset)
+	f(pending)
+
+	if pending.request.GetOffset() == nil {
+		t.Errorf("expected offset, got none")
+	}
+	if pending.request.GetOffset().GetValue() != wantOffset {
+		t.Errorf("offset mismatch, got %d wanted %d", pending.request.GetOffset().GetValue(), wantOffset)
 	}
 
-	// verify completion behavior
-	reportedOffset := int64(101)
+	// Verify completion behavior with an error.
 	wantErr := fmt.Errorf("foo")
-	pending.markDone(reportedOffset, wantErr, nil)
+
+	testResp := &storagepb.AppendRowsResponse{
+		Response: &storagepb.AppendRowsResponse_AppendResult_{
+			AppendResult: &storagepb.AppendRowsResponse_AppendResult{
+				Offset: &wrapperspb.Int64Value{
+					Value: wantOffset,
+				},
+			},
+		},
+	}
+	pending.markDone(testResp, wantErr, nil)
 
 	if pending.request != nil {
 		t.Errorf("expected request to be cleared, is present: %#v", pending.request)
@@ -114,12 +136,20 @@ func TestPendingWrite(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 		t.Errorf("possible blocking on completed AppendResult")
 	case <-pending.result.Ready():
-		if pending.result.offset != reportedOffset {
-			t.Errorf("mismatch on completed AppendResult offset: got %d want %d", pending.result.offset, reportedOffset)
+		gotOffset, gotErr := pending.result.GetResult(ctx)
+		if gotOffset != wantOffset {
+			t.Errorf("GetResult: mismatch on completed AppendResult offset: got %d want %d", gotOffset, wantOffset)
 		}
-		if pending.result.err != wantErr {
-			t.Errorf("mismatch in errors, got %v want %v", pending.result.err, wantErr)
+		if gotErr != wantErr {
+			t.Errorf("GetResult: mismatch in errors, got %v want %v", gotErr, wantErr)
+		}
+		// Now, check FullResponse.
+		gotResp, gotErr := pending.result.FullResponse(ctx)
+		if gotErr != wantErr {
+			t.Errorf("FullResponse: mismatch in errors, got %v want %v", gotErr, wantErr)
+		}
+		if diff := cmp.Diff(gotResp, testResp, protocmp.Transform()); diff != "" {
+			t.Errorf("FullResponse diff: %s", diff)
 		}
 	}
-
 }

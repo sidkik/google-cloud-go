@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,13 +20,19 @@ import (
 	"context"
 
 	artifactregistry "cloud.google.com/go/artifactregistry/apiv1beta2"
+	artifactregistrypb "cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb"
 	"google.golang.org/api/iterator"
-	artifactregistrypb "google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2"
+	locationpb "google.golang.org/genproto/googleapis/cloud/location"
 	iampb "google.golang.org/genproto/googleapis/iam/v1"
 )
 
 func ExampleNewClient() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -37,8 +43,90 @@ func ExampleNewClient() {
 	_ = c
 }
 
+func ExampleNewRESTClient() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := artifactregistry.NewRESTClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	// TODO: Use client.
+	_ = c
+}
+
+func ExampleClient_ImportAptArtifacts() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := artifactregistry.NewClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &artifactregistrypb.ImportAptArtifactsRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#ImportAptArtifactsRequest.
+	}
+	op, err := c.ImportAptArtifacts(ctx, req)
+	if err != nil {
+		// TODO: Handle error.
+	}
+
+	resp, err := op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	// TODO: Use resp.
+	_ = resp
+}
+
+func ExampleClient_ImportYumArtifacts() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := artifactregistry.NewClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &artifactregistrypb.ImportYumArtifactsRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#ImportYumArtifactsRequest.
+	}
+	op, err := c.ImportYumArtifacts(ctx, req)
+	if err != nil {
+		// TODO: Handle error.
+	}
+
+	resp, err := op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	// TODO: Use resp.
+	_ = resp
+}
+
 func ExampleClient_ListRepositories() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -47,7 +135,7 @@ func ExampleClient_ListRepositories() {
 
 	req := &artifactregistrypb.ListRepositoriesRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2#ListRepositoriesRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#ListRepositoriesRequest.
 	}
 	it := c.ListRepositories(ctx, req)
 	for {
@@ -65,6 +153,11 @@ func ExampleClient_ListRepositories() {
 
 func ExampleClient_GetRepository() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -73,7 +166,7 @@ func ExampleClient_GetRepository() {
 
 	req := &artifactregistrypb.GetRepositoryRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2#GetRepositoryRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#GetRepositoryRequest.
 	}
 	resp, err := c.GetRepository(ctx, req)
 	if err != nil {
@@ -85,6 +178,11 @@ func ExampleClient_GetRepository() {
 
 func ExampleClient_CreateRepository() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -93,7 +191,7 @@ func ExampleClient_CreateRepository() {
 
 	req := &artifactregistrypb.CreateRepositoryRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2#CreateRepositoryRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#CreateRepositoryRequest.
 	}
 	op, err := c.CreateRepository(ctx, req)
 	if err != nil {
@@ -110,6 +208,11 @@ func ExampleClient_CreateRepository() {
 
 func ExampleClient_UpdateRepository() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -118,7 +221,7 @@ func ExampleClient_UpdateRepository() {
 
 	req := &artifactregistrypb.UpdateRepositoryRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2#UpdateRepositoryRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#UpdateRepositoryRequest.
 	}
 	resp, err := c.UpdateRepository(ctx, req)
 	if err != nil {
@@ -130,6 +233,11 @@ func ExampleClient_UpdateRepository() {
 
 func ExampleClient_DeleteRepository() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -138,7 +246,7 @@ func ExampleClient_DeleteRepository() {
 
 	req := &artifactregistrypb.DeleteRepositoryRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2#DeleteRepositoryRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#DeleteRepositoryRequest.
 	}
 	op, err := c.DeleteRepository(ctx, req)
 	if err != nil {
@@ -153,6 +261,11 @@ func ExampleClient_DeleteRepository() {
 
 func ExampleClient_ListPackages() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -161,7 +274,7 @@ func ExampleClient_ListPackages() {
 
 	req := &artifactregistrypb.ListPackagesRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2#ListPackagesRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#ListPackagesRequest.
 	}
 	it := c.ListPackages(ctx, req)
 	for {
@@ -179,6 +292,11 @@ func ExampleClient_ListPackages() {
 
 func ExampleClient_GetPackage() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -187,7 +305,7 @@ func ExampleClient_GetPackage() {
 
 	req := &artifactregistrypb.GetPackageRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2#GetPackageRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#GetPackageRequest.
 	}
 	resp, err := c.GetPackage(ctx, req)
 	if err != nil {
@@ -199,6 +317,11 @@ func ExampleClient_GetPackage() {
 
 func ExampleClient_DeletePackage() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -207,7 +330,7 @@ func ExampleClient_DeletePackage() {
 
 	req := &artifactregistrypb.DeletePackageRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2#DeletePackageRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#DeletePackageRequest.
 	}
 	op, err := c.DeletePackage(ctx, req)
 	if err != nil {
@@ -222,6 +345,11 @@ func ExampleClient_DeletePackage() {
 
 func ExampleClient_ListVersions() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -230,7 +358,7 @@ func ExampleClient_ListVersions() {
 
 	req := &artifactregistrypb.ListVersionsRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2#ListVersionsRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#ListVersionsRequest.
 	}
 	it := c.ListVersions(ctx, req)
 	for {
@@ -248,6 +376,11 @@ func ExampleClient_ListVersions() {
 
 func ExampleClient_GetVersion() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -256,7 +389,7 @@ func ExampleClient_GetVersion() {
 
 	req := &artifactregistrypb.GetVersionRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2#GetVersionRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#GetVersionRequest.
 	}
 	resp, err := c.GetVersion(ctx, req)
 	if err != nil {
@@ -268,6 +401,11 @@ func ExampleClient_GetVersion() {
 
 func ExampleClient_DeleteVersion() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -276,7 +414,7 @@ func ExampleClient_DeleteVersion() {
 
 	req := &artifactregistrypb.DeleteVersionRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2#DeleteVersionRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#DeleteVersionRequest.
 	}
 	op, err := c.DeleteVersion(ctx, req)
 	if err != nil {
@@ -291,6 +429,11 @@ func ExampleClient_DeleteVersion() {
 
 func ExampleClient_ListFiles() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -299,7 +442,7 @@ func ExampleClient_ListFiles() {
 
 	req := &artifactregistrypb.ListFilesRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2#ListFilesRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#ListFilesRequest.
 	}
 	it := c.ListFiles(ctx, req)
 	for {
@@ -317,6 +460,11 @@ func ExampleClient_ListFiles() {
 
 func ExampleClient_GetFile() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -325,7 +473,7 @@ func ExampleClient_GetFile() {
 
 	req := &artifactregistrypb.GetFileRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2#GetFileRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#GetFileRequest.
 	}
 	resp, err := c.GetFile(ctx, req)
 	if err != nil {
@@ -337,6 +485,11 @@ func ExampleClient_GetFile() {
 
 func ExampleClient_ListTags() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -345,7 +498,7 @@ func ExampleClient_ListTags() {
 
 	req := &artifactregistrypb.ListTagsRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2#ListTagsRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#ListTagsRequest.
 	}
 	it := c.ListTags(ctx, req)
 	for {
@@ -363,6 +516,11 @@ func ExampleClient_ListTags() {
 
 func ExampleClient_GetTag() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -371,7 +529,7 @@ func ExampleClient_GetTag() {
 
 	req := &artifactregistrypb.GetTagRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2#GetTagRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#GetTagRequest.
 	}
 	resp, err := c.GetTag(ctx, req)
 	if err != nil {
@@ -383,6 +541,11 @@ func ExampleClient_GetTag() {
 
 func ExampleClient_CreateTag() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -391,7 +554,7 @@ func ExampleClient_CreateTag() {
 
 	req := &artifactregistrypb.CreateTagRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2#CreateTagRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#CreateTagRequest.
 	}
 	resp, err := c.CreateTag(ctx, req)
 	if err != nil {
@@ -403,6 +566,11 @@ func ExampleClient_CreateTag() {
 
 func ExampleClient_UpdateTag() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -411,7 +579,7 @@ func ExampleClient_UpdateTag() {
 
 	req := &artifactregistrypb.UpdateTagRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2#UpdateTagRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#UpdateTagRequest.
 	}
 	resp, err := c.UpdateTag(ctx, req)
 	if err != nil {
@@ -423,6 +591,11 @@ func ExampleClient_UpdateTag() {
 
 func ExampleClient_DeleteTag() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -431,7 +604,7 @@ func ExampleClient_DeleteTag() {
 
 	req := &artifactregistrypb.DeleteTagRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/devtools/artifactregistry/v1beta2#DeleteTagRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#DeleteTagRequest.
 	}
 	err = c.DeleteTag(ctx, req)
 	if err != nil {
@@ -441,6 +614,11 @@ func ExampleClient_DeleteTag() {
 
 func ExampleClient_SetIamPolicy() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -461,6 +639,11 @@ func ExampleClient_SetIamPolicy() {
 
 func ExampleClient_GetIamPolicy() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -481,6 +664,11 @@ func ExampleClient_GetIamPolicy() {
 
 func ExampleClient_TestIamPermissions() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := artifactregistry.NewClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -497,4 +685,110 @@ func ExampleClient_TestIamPermissions() {
 	}
 	// TODO: Use resp.
 	_ = resp
+}
+
+func ExampleClient_GetProjectSettings() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := artifactregistry.NewClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &artifactregistrypb.GetProjectSettingsRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#GetProjectSettingsRequest.
+	}
+	resp, err := c.GetProjectSettings(ctx, req)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	// TODO: Use resp.
+	_ = resp
+}
+
+func ExampleClient_UpdateProjectSettings() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := artifactregistry.NewClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &artifactregistrypb.UpdateProjectSettingsRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/cloud.google.com/go/artifactregistry/apiv1beta2/artifactregistrypb#UpdateProjectSettingsRequest.
+	}
+	resp, err := c.UpdateProjectSettings(ctx, req)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	// TODO: Use resp.
+	_ = resp
+}
+
+func ExampleClient_GetLocation() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := artifactregistry.NewClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &locationpb.GetLocationRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/location#GetLocationRequest.
+	}
+	resp, err := c.GetLocation(ctx, req)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	// TODO: Use resp.
+	_ = resp
+}
+
+func ExampleClient_ListLocations() {
+	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
+	c, err := artifactregistry.NewClient(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
+	defer c.Close()
+
+	req := &locationpb.ListLocationsRequest{
+		// TODO: Fill request struct fields.
+		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/location#ListLocationsRequest.
+	}
+	it := c.ListLocations(ctx, req)
+	for {
+		resp, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			// TODO: Handle error.
+		}
+		// TODO: Use resp.
+		_ = resp
+	}
 }

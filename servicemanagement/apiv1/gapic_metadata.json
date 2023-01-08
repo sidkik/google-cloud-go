@@ -30,14 +30,74 @@
                 "DeleteService"
               ]
             },
-            "DisableService": {
+            "GenerateConfigReport": {
               "methods": [
-                "DisableService"
+                "GenerateConfigReport"
               ]
             },
-            "EnableService": {
+            "GetService": {
               "methods": [
-                "EnableService"
+                "GetService"
+              ]
+            },
+            "GetServiceConfig": {
+              "methods": [
+                "GetServiceConfig"
+              ]
+            },
+            "GetServiceRollout": {
+              "methods": [
+                "GetServiceRollout"
+              ]
+            },
+            "ListServiceConfigs": {
+              "methods": [
+                "ListServiceConfigs"
+              ]
+            },
+            "ListServiceRollouts": {
+              "methods": [
+                "ListServiceRollouts"
+              ]
+            },
+            "ListServices": {
+              "methods": [
+                "ListServices"
+              ]
+            },
+            "SubmitConfigSource": {
+              "methods": [
+                "SubmitConfigSource"
+              ]
+            },
+            "UndeleteService": {
+              "methods": [
+                "UndeleteService"
+              ]
+            }
+          }
+        },
+        "rest": {
+          "libraryClient": "ServiceManagerClient",
+          "rpcs": {
+            "CreateService": {
+              "methods": [
+                "CreateService"
+              ]
+            },
+            "CreateServiceConfig": {
+              "methods": [
+                "CreateServiceConfig"
+              ]
+            },
+            "CreateServiceRollout": {
+              "methods": [
+                "CreateServiceRollout"
+              ]
+            },
+            "DeleteService": {
+              "methods": [
+                "DeleteService"
               ]
             },
             "GenerateConfigReport": {

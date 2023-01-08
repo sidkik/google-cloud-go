@@ -20,7 +20,7 @@ import (
 	"cloud.google.com/go/internal/optional"
 	"github.com/golang/protobuf/ptypes"
 
-	pb "google.golang.org/genproto/googleapis/cloud/pubsublite/v1"
+	pb "cloud.google.com/go/pubsublite/apiv1/pubsublitepb"
 	fmpb "google.golang.org/genproto/protobuf/field_mask"
 )
 
@@ -34,13 +34,14 @@ const InfiniteRetention = time.Duration(-1)
 // about how topics are configured.
 type TopicConfig struct {
 	// The full path of the topic, in the format:
-	// "projects/PROJECT_ID/locations/ZONE/topics/TOPIC_ID".
+	// "projects/PROJECT_ID/locations/LOCATION/topics/TOPIC_ID".
 	//
 	// - PROJECT_ID: The project ID (e.g. "my-project") or the project number
 	//   (e.g. "987654321") can be provided.
-	// - ZONE: The Google Cloud zone (e.g. "us-central1-a") where the topic is
-	//   located. See https://cloud.google.com/pubsub/lite/docs/locations for the
-	//   list of zones where Pub/Sub Lite is available.
+	// - LOCATION: The Google Cloud region (e.g. "us-central1") or zone
+	//   (e.g. "us-central1-a") where the topic is located.
+	//   See https://cloud.google.com/pubsub/lite/docs/locations for the list of
+	//   regions and zones where Pub/Sub Lite is available.
 	// - TOPIC_ID: The ID of the topic (e.g. "my-topic"). See
 	//   https://cloud.google.com/pubsub/docs/admin#resource_names for information
 	//   about valid topic IDs.
@@ -118,7 +119,7 @@ func protoToTopicConfig(t *pb.Topic) (*TopicConfig, error) {
 	if retentionCfg.Period != nil {
 		period, err := ptypes.Duration(retentionCfg.Period)
 		if err != nil {
-			return nil, fmt.Errorf("pubsublite: invalid retention period in topic config: %v", err)
+			return nil, fmt.Errorf("pubsublite: invalid retention period in topic config: %w", err)
 		}
 		topic.RetentionDuration = period
 	}
@@ -128,7 +129,7 @@ func protoToTopicConfig(t *pb.Topic) (*TopicConfig, error) {
 // TopicConfigToUpdate specifies the properties to update for a topic.
 type TopicConfigToUpdate struct {
 	// The full path of the topic to update, in the format:
-	// "projects/PROJECT_ID/locations/ZONE/topics/TOPIC_ID". Required.
+	// "projects/PROJECT_ID/locations/LOCATION/topics/TOPIC_ID". Required.
 	Name string
 
 	// If non-zero, will update the number of partitions in the topic.
@@ -210,6 +211,105 @@ func (tc *TopicConfigToUpdate) toUpdateRequest() *pb.UpdateTopicRequest {
 	}
 }
 
+// ExportDestinationConfig is the configuration for exporting to a destination.
+// Implemented by *PubSubDestinationConfig.
+type ExportDestinationConfig interface {
+	setExportConfig(ec *pb.ExportConfig) string
+}
+
+// PubSubDestinationConfig configures messages to be exported to a Pub/Sub
+// topic. Implements the ExportDestinationConfig interface.
+//
+// See https://cloud.google.com/pubsub/lite/docs/export-pubsub for more
+// information about how export subscriptions to Pub/Sub are configured.
+type PubSubDestinationConfig struct {
+	// The path of a Pub/Sub topic, in the format:
+	// "projects/PROJECT_ID/topics/TOPIC_ID".
+	Topic string
+}
+
+func (pc *PubSubDestinationConfig) setExportConfig(ec *pb.ExportConfig) string {
+	ec.Destination = &pb.ExportConfig_PubsubConfig{
+		PubsubConfig: &pb.ExportConfig_PubSubConfig{Topic: pc.Topic},
+	}
+	return "export_config.pubsub_config"
+}
+
+// ExportState specifies the desired state of an export subscription.
+type ExportState int
+
+const (
+	// UnspecifiedExportState represents an unset export state.
+	UnspecifiedExportState ExportState = iota
+
+	// ExportActive specifies that export processing should be enabled.
+	ExportActive
+
+	// ExportPaused specifies that export processing should be suspended.
+	ExportPaused
+
+	// ExportPermissionDenied specifies that messages cannot be exported due to
+	// permission denied errors. Output only.
+	ExportPermissionDenied
+
+	// ExportResourceNotFound specifies that messages cannot be exported due to
+	// missing resources. Output only.
+	ExportResourceNotFound
+)
+
+// ExportConfig describes the properties of a Pub/Sub Lite export subscription,
+// which configures the service to write messages to a destination.
+type ExportConfig struct {
+	// The desired state of this export subscription. This should only be set to
+	// ExportActive or ExportPaused.
+	DesiredState ExportState
+
+	// This is an output only field that reports the current export state. It is
+	// ignored if set in any requests.
+	CurrentState ExportState
+
+	// The path of an optional Pub/Sub Lite topic to receive messages that cannot
+	// be exported to the destination, in the format:
+	// "projects/PROJECT_ID/locations/LOCATION/topics/TOPIC_ID".
+	// Must be within the same project and location as the subscription.
+	DeadLetterTopic string
+
+	// The destination to export messages to.
+	Destination ExportDestinationConfig
+}
+
+func (ec *ExportConfig) toProto() *pb.ExportConfig {
+	if ec == nil {
+		return nil
+	}
+	epb := &pb.ExportConfig{
+		DeadLetterTopic: ec.DeadLetterTopic,
+		// Note: Assumes enum values match API proto.
+		DesiredState: pb.ExportConfig_State(ec.DesiredState),
+		CurrentState: pb.ExportConfig_State(ec.CurrentState),
+	}
+	if ec.Destination != nil {
+		ec.Destination.setExportConfig(epb)
+	}
+	return epb
+}
+
+func protoToExportConfig(epb *pb.ExportConfig) *ExportConfig {
+	if epb == nil {
+		return nil
+	}
+	ec := &ExportConfig{
+		DeadLetterTopic: epb.GetDeadLetterTopic(),
+		// Note: Assumes enum values match API proto.
+		DesiredState: ExportState(epb.GetDesiredState().Number()),
+		CurrentState: ExportState(epb.GetCurrentState().Number()),
+	}
+	if ps := epb.GetPubsubConfig(); ps != nil {
+		ec.Destination = &PubSubDestinationConfig{Topic: ps.Topic}
+	}
+	return ec
+}
+
 // DeliveryRequirement specifies when a subscription should send messages to
 // subscribers relative to persistence in storage.
 type DeliveryRequirement int
@@ -234,31 +334,37 @@ const (
 // information about how subscriptions are configured.
 type SubscriptionConfig struct {
 	// The full path of the subscription, in the format:
-	// "projects/PROJECT_ID/locations/ZONE/subscriptions/SUBSCRIPTION_ID".
+	// "projects/PROJECT_ID/locations/LOCATION/subscriptions/SUBSCRIPTION_ID".
 	//
 	// - PROJECT_ID: The project ID (e.g. "my-project") or the project number
 	//   (e.g. "987654321") can be provided.
-	// - ZONE: The Google Cloud zone (e.g. "us-central1-a") of the corresponding
-	//   topic.
+	// - LOCATION: The Google Cloud region (e.g. "us-central1") or zone
+	//   (e.g. "us-central1-a") of the corresponding topic.
 	// - SUBSCRIPTION_ID: The ID of the subscription (e.g. "my-subscription"). See
 	//   https://cloud.google.com/pubsub/docs/admin#resource_names for information
 	//   about valid subscription IDs.
 	Name string
 
 	// The path of the topic that this subscription is attached to, in the format:
-	// "projects/PROJECT_ID/locations/ZONE/topics/TOPIC_ID". This cannot be
+	// "projects/PROJECT_ID/locations/LOCATION/topics/TOPIC_ID". This cannot be
 	// changed after creation.
 	Topic string
 
 	// Whether a message should be delivered to subscribers immediately after it
 	// has been published or after it has been successfully written to storage.
 	DeliveryRequirement DeliveryRequirement
+
+	// If non-nil, configures this subscription to export messages from the
+	// associated topic to a destination. The ExportConfig cannot be removed after
+	// creation of the subscription, however its properties can be changed.
+	ExportConfig *ExportConfig
 }
 
 func (sc *SubscriptionConfig) toProto() *pb.Subscription {
 	subspb := &pb.Subscription{
-		Name:  sc.Name,
-		Topic: sc.Topic,
+		Name:         sc.Name,
+		Topic:        sc.Topic,
+		ExportConfig: sc.ExportConfig.toProto(),
 	}
 	if sc.DeliveryRequirement > 0 {
 		subspb.DeliveryConfig = &pb.Subscription_DeliveryConfig{
@@ -275,31 +381,75 @@ func protoToSubscriptionConfig(s *pb.Subscription) *SubscriptionConfig {
 		Topic: s.GetTopic(),
 		// Note: Assumes DeliveryRequirement enum values match API proto.
 		DeliveryRequirement: DeliveryRequirement(s.GetDeliveryConfig().GetDeliveryRequirement().Number()),
+		ExportConfig:        protoToExportConfig(s.GetExportConfig()),
 	}
+}
+
+// ExportConfigToUpdate specifies the properties to update for an export
+// subscription.
+type ExportConfigToUpdate struct {
+	// If non-zero, updates the desired state. This should only be set to
+	// ExportActive or ExportPaused.
+	DesiredState ExportState
+
+	// The path of an optional Pub/Sub Lite topic to receive messages that cannot
+	// be exported to the destination, in the format:
+	// "projects/PROJECT_ID/locations/LOCATION/topics/TOPIC_ID".
+	// Must be within the same project and location as the subscription.
+	DeadLetterTopic optional.String
+
+	// If non-nil, updates the export destination configuration.
+	Destination ExportDestinationConfig
+}
+
+func (ec *ExportConfigToUpdate) toUpdateRequest() (*pb.ExportConfig, []string) {
+	if ec == nil {
+		return nil, nil
+	}
+	var fields []string
+	updatedExport := &pb.ExportConfig{
+		// Note: Assumes enum values match API proto.
+		DesiredState: pb.ExportConfig_State(ec.DesiredState),
+	}
+	if ec.DesiredState > 0 {
+		fields = append(fields, "export_config.desired_state")
+	}
+	if ec.Destination != nil {
+		destinationField := ec.Destination.setExportConfig(updatedExport)
+		fields = append(fields, destinationField)
+	}
+	if ec.DeadLetterTopic != nil {
+		updatedExport.DeadLetterTopic = optional.ToString(ec.DeadLetterTopic)
+		fields = append(fields, "export_config.dead_letter_topic")
+	}
+	return updatedExport, fields
 }
 
 // SubscriptionConfigToUpdate specifies the properties to update for a
 // subscription.
 type SubscriptionConfigToUpdate struct {
 	// The full path of the subscription to update, in the format:
-	// "projects/PROJECT_ID/locations/ZONE/subscriptions/SUBSCRIPTION_ID".
+	// "projects/PROJECT_ID/locations/LOCATION/subscriptions/SUBSCRIPTION_ID".
 	// Required.
 	Name string
 
 	// If non-zero, updates the message delivery requirement.
 	DeliveryRequirement DeliveryRequirement
+
+	// If non-nil, updates export config properties.
+	ExportConfig *ExportConfigToUpdate
 }
 
 func (sc *SubscriptionConfigToUpdate) toUpdateRequest() *pb.UpdateSubscriptionRequest {
+	exportConfig, fields := sc.ExportConfig.toUpdateRequest()
 	updatedSubs := &pb.Subscription{
 		Name: sc.Name,
 		DeliveryConfig: &pb.Subscription_DeliveryConfig{
 			// Note: Assumes DeliveryRequirement enum values match API proto.
 			DeliveryRequirement: pb.Subscription_DeliveryConfig_DeliveryRequirement(sc.DeliveryRequirement),
 		},
+		ExportConfig: exportConfig,
 	}
-
-	var fields []string
 	if sc.DeliveryRequirement > 0 {
 		fields = append(fields, "delivery_config.delivery_requirement")
 	}

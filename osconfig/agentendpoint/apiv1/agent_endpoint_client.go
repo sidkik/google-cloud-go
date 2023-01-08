@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,11 +21,11 @@ import (
 	"math"
 	"time"
 
+	agentendpointpb "cloud.google.com/go/osconfig/agentendpoint/apiv1/agentendpointpb"
 	gax "github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/option"
 	"google.golang.org/api/option/internaloption"
 	gtransport "google.golang.org/api/transport/grpc"
-	agentendpointpb "google.golang.org/genproto/googleapis/cloud/osconfig/agentendpoint/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -50,7 +50,6 @@ func defaultGRPCClientOptions() []option.ClientOption {
 		internaloption.WithDefaultAudience("https://osconfig.googleapis.com/"),
 		internaloption.WithDefaultScopes(DefaultAuthScopes()...),
 		internaloption.EnableJwtWithScope(),
-		option.WithGRPCDialOption(grpc.WithDisableServiceConfig()),
 		option.WithGRPCDialOption(grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(math.MaxInt32))),
 	}
@@ -131,7 +130,7 @@ func defaultCallOptions() *CallOptions {
 	}
 }
 
-// internalClient is an interface that defines the methods availaible from OS Config API.
+// internalClient is an interface that defines the methods available from OS Config API.
 type internalClient interface {
 	Close() error
 	setGoogleClientInfo(...string)
@@ -173,7 +172,8 @@ func (c *Client) setGoogleClientInfo(keyval ...string) {
 
 // Connection returns a connection to the API service.
 //
-// Deprecated.
+// Deprecated: Connections are now pooled so this method does not always
+// return the same resource.
 func (c *Client) Connection() *grpc.ClientConn {
 	return c.internalClient.Connection()
 }
@@ -269,7 +269,8 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error
 
 // Connection returns a connection to the API service.
 //
-// Deprecated.
+// Deprecated: Connections are now pooled so this method does not always
+// return the same resource.
 func (c *gRPCClient) Connection() *grpc.ClientConn {
 	return c.connPool.Conn()
 }
@@ -279,7 +280,7 @@ func (c *gRPCClient) Connection() *grpc.ClientConn {
 // use by Google-written clients.
 func (c *gRPCClient) setGoogleClientInfo(keyval ...string) {
 	kv := append([]string{"gl-go", versionGo()}, keyval...)
-	kv = append(kv, "gapic", versionClient, "gax", gax.Version, "grpc", grpc.Version)
+	kv = append(kv, "gapic", getVersionClient(), "gax", gax.Version, "grpc", grpc.Version)
 	c.xGoogMetadata = metadata.Pairs("x-goog-api-client", gax.XGoogHeader(kv...))
 }
 

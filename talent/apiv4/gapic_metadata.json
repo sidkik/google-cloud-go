@@ -25,6 +25,46 @@
                 "GetCompany"
               ]
             },
+            "GetOperation": {
+              "methods": [
+                "GetOperation"
+              ]
+            },
+            "ListCompanies": {
+              "methods": [
+                "ListCompanies"
+              ]
+            },
+            "UpdateCompany": {
+              "methods": [
+                "UpdateCompany"
+              ]
+            }
+          }
+        },
+        "rest": {
+          "libraryClient": "CompanyClient",
+          "rpcs": {
+            "CreateCompany": {
+              "methods": [
+                "CreateCompany"
+              ]
+            },
+            "DeleteCompany": {
+              "methods": [
+                "DeleteCompany"
+              ]
+            },
+            "GetCompany": {
+              "methods": [
+                "GetCompany"
+              ]
+            },
+            "GetOperation": {
+              "methods": [
+                "GetOperation"
+              ]
+            },
             "ListCompanies": {
               "methods": [
                 "ListCompanies"
@@ -48,6 +88,26 @@
               "methods": [
                 "CompleteQuery"
               ]
+            },
+            "GetOperation": {
+              "methods": [
+                "GetOperation"
+              ]
+            }
+          }
+        },
+        "rest": {
+          "libraryClient": "CompletionClient",
+          "rpcs": {
+            "CompleteQuery": {
+              "methods": [
+                "CompleteQuery"
+              ]
+            },
+            "GetOperation": {
+              "methods": [
+                "GetOperation"
+              ]
             }
           }
         }
@@ -61,6 +121,26 @@
             "CreateClientEvent": {
               "methods": [
                 "CreateClientEvent"
+              ]
+            },
+            "GetOperation": {
+              "methods": [
+                "GetOperation"
+              ]
+            }
+          }
+        },
+        "rest": {
+          "libraryClient": "EventClient",
+          "rpcs": {
+            "CreateClientEvent": {
+              "methods": [
+                "CreateClientEvent"
+              ]
+            },
+            "GetOperation": {
+              "methods": [
+                "GetOperation"
               ]
             }
           }
@@ -102,6 +182,71 @@
                 "GetJob"
               ]
             },
+            "GetOperation": {
+              "methods": [
+                "GetOperation"
+              ]
+            },
+            "ListJobs": {
+              "methods": [
+                "ListJobs"
+              ]
+            },
+            "SearchJobs": {
+              "methods": [
+                "SearchJobs"
+              ]
+            },
+            "SearchJobsForAlert": {
+              "methods": [
+                "SearchJobsForAlert"
+              ]
+            },
+            "UpdateJob": {
+              "methods": [
+                "UpdateJob"
+              ]
+            }
+          }
+        },
+        "rest": {
+          "libraryClient": "JobClient",
+          "rpcs": {
+            "BatchCreateJobs": {
+              "methods": [
+                "BatchCreateJobs"
+              ]
+            },
+            "BatchDeleteJobs": {
+              "methods": [
+                "BatchDeleteJobs"
+              ]
+            },
+            "BatchUpdateJobs": {
+              "methods": [
+                "BatchUpdateJobs"
+              ]
+            },
+            "CreateJob": {
+              "methods": [
+                "CreateJob"
+              ]
+            },
+            "DeleteJob": {
+              "methods": [
+                "DeleteJob"
+              ]
+            },
+            "GetJob": {
+              "methods": [
+                "GetJob"
+              ]
+            },
+            "GetOperation": {
+              "methods": [
+                "GetOperation"
+              ]
+            },
             "ListJobs": {
               "methods": [
                 "ListJobs"
@@ -139,6 +284,46 @@
             "DeleteTenant": {
               "methods": [
                 "DeleteTenant"
+              ]
+            },
+            "GetOperation": {
+              "methods": [
+                "GetOperation"
+              ]
+            },
+            "GetTenant": {
+              "methods": [
+                "GetTenant"
+              ]
+            },
+            "ListTenants": {
+              "methods": [
+                "ListTenants"
+              ]
+            },
+            "UpdateTenant": {
+              "methods": [
+                "UpdateTenant"
+              ]
+            }
+          }
+        },
+        "rest": {
+          "libraryClient": "TenantClient",
+          "rpcs": {
+            "CreateTenant": {
+              "methods": [
+                "CreateTenant"
+              ]
+            },
+            "DeleteTenant": {
+              "methods": [
+                "DeleteTenant"
+              ]
+            },
+            "GetOperation": {
+              "methods": [
+                "GetOperation"
               ]
             },
             "GetTenant": {

@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,21 +17,29 @@
 package dialogflow
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"math"
+	"net/http"
 	"net/url"
 	"time"
 
+	dialogflowpb "cloud.google.com/go/dialogflow/apiv2/dialogflowpb"
 	gax "github.com/googleapis/gax-go/v2"
+	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"google.golang.org/api/option/internaloption"
 	gtransport "google.golang.org/api/transport/grpc"
-	dialogflowpb "google.golang.org/genproto/googleapis/cloud/dialogflow/v2"
+	httptransport "google.golang.org/api/transport/http"
+	locationpb "google.golang.org/genproto/googleapis/cloud/location"
+	longrunningpb "google.golang.org/genproto/googleapis/longrunning"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -45,6 +53,11 @@ type EnvironmentsCallOptions struct {
 	UpdateEnvironment     []gax.CallOption
 	DeleteEnvironment     []gax.CallOption
 	GetEnvironmentHistory []gax.CallOption
+	GetLocation           []gax.CallOption
+	ListLocations         []gax.CallOption
+	CancelOperation       []gax.CallOption
+	GetOperation          []gax.CallOption
+	ListOperations        []gax.CallOption
 }
 
 func defaultEnvironmentsGRPCClientOptions() []option.ClientOption {
@@ -54,7 +67,6 @@ func defaultEnvironmentsGRPCClientOptions() []option.ClientOption {
 		internaloption.WithDefaultAudience("https://dialogflow.googleapis.com/"),
 		internaloption.WithDefaultScopes(DefaultAuthScopes()...),
 		internaloption.EnableJwtWithScope(),
-		option.WithGRPCDialOption(grpc.WithDisableServiceConfig()),
 		option.WithGRPCDialOption(grpc.WithDefaultCallOptions(
 			grpc.MaxCallRecvMsgSize(math.MaxInt32))),
 	}
@@ -128,10 +140,85 @@ func defaultEnvironmentsCallOptions() *EnvironmentsCallOptions {
 				})
 			}),
 		},
+		GetLocation:     []gax.CallOption{},
+		ListLocations:   []gax.CallOption{},
+		CancelOperation: []gax.CallOption{},
+		GetOperation:    []gax.CallOption{},
+		ListOperations:  []gax.CallOption{},
 	}
 }
 
-// internalEnvironmentsClient is an interface that defines the methods availaible from Dialogflow API.
+func defaultEnvironmentsRESTCallOptions() *EnvironmentsCallOptions {
+	return &EnvironmentsCallOptions{
+		ListEnvironments: []gax.CallOption{
+			gax.WithRetry(func() gax.Retryer {
+				return gax.OnHTTPCodes(gax.Backoff{
+					Initial:    100 * time.Millisecond,
+					Max:        60000 * time.Millisecond,
+					Multiplier: 1.30,
+				},
+					http.StatusServiceUnavailable)
+			}),
+		},
+		GetEnvironment: []gax.CallOption{
+			gax.WithRetry(func() gax.Retryer {
+				return gax.OnHTTPCodes(gax.Backoff{
+					Initial:    100 * time.Millisecond,
+					Max:        60000 * time.Millisecond,
+					Multiplier: 1.30,
+				},
+					http.StatusServiceUnavailable)
+			}),
+		},
+		CreateEnvironment: []gax.CallOption{
+			gax.WithRetry(func() gax.Retryer {
+				return gax.OnHTTPCodes(gax.Backoff{
+					Initial:    100 * time.Millisecond,
+					Max:        60000 * time.Millisecond,
+					Multiplier: 1.30,
+				},
+					http.StatusServiceUnavailable)
+			}),
+		},
+		UpdateEnvironment: []gax.CallOption{
+			gax.WithRetry(func() gax.Retryer {
+				return gax.OnHTTPCodes(gax.Backoff{
+					Initial:    100 * time.Millisecond,
+					Max:        60000 * time.Millisecond,
+					Multiplier: 1.30,
+				},
+					http.StatusServiceUnavailable)
+			}),
+		},
+		DeleteEnvironment: []gax.CallOption{
+			gax.WithRetry(func() gax.Retryer {
+				return gax.OnHTTPCodes(gax.Backoff{
+					Initial:    100 * time.Millisecond,
+					Max:        60000 * time.Millisecond,
+					Multiplier: 1.30,
+				},
+					http.StatusServiceUnavailable)
+			}),
+		},
+		GetEnvironmentHistory: []gax.CallOption{
+			gax.WithRetry(func() gax.Retryer {
+				return gax.OnHTTPCodes(gax.Backoff{
+					Initial:    100 * time.Millisecond,
+					Max:        60000 * time.Millisecond,
+					Multiplier: 1.30,
+				},
+					http.StatusServiceUnavailable)
+			}),
+		},
+		GetLocation:     []gax.CallOption{},
+		ListLocations:   []gax.CallOption{},
+		CancelOperation: []gax.CallOption{},
+		GetOperation:    []gax.CallOption{},
+		ListOperations:  []gax.CallOption{},
+	}
+}
+
+// internalEnvironmentsClient is an interface that defines the methods available from Dialogflow API.
 type internalEnvironmentsClient interface {
 	Close() error
 	setGoogleClientInfo(...string)
@@ -142,6 +229,11 @@ type internalEnvironmentsClient interface {
 	UpdateEnvironment(context.Context, *dialogflowpb.UpdateEnvironmentRequest, ...gax.CallOption) (*dialogflowpb.Environment, error)
 	DeleteEnvironment(context.Context, *dialogflowpb.DeleteEnvironmentRequest, ...gax.CallOption) error
 	GetEnvironmentHistory(context.Context, *dialogflowpb.GetEnvironmentHistoryRequest, ...gax.CallOption) *EnvironmentHistory_EntryIterator
+	GetLocation(context.Context, *locationpb.GetLocationRequest, ...gax.CallOption) (*locationpb.Location, error)
+	ListLocations(context.Context, *locationpb.ListLocationsRequest, ...gax.CallOption) *LocationIterator
+	CancelOperation(context.Context, *longrunningpb.CancelOperationRequest, ...gax.CallOption) error
+	GetOperation(context.Context, *longrunningpb.GetOperationRequest, ...gax.CallOption) (*longrunningpb.Operation, error)
+	ListOperations(context.Context, *longrunningpb.ListOperationsRequest, ...gax.CallOption) *OperationIterator
 }
 
 // EnvironmentsClient is a client for interacting with Dialogflow API.
@@ -173,7 +265,8 @@ func (c *EnvironmentsClient) setGoogleClientInfo(keyval ...string) {
 
 // Connection returns a connection to the API service.
 //
-// Deprecated.
+// Deprecated: Connections are now pooled so this method does not always
+// return the same resource.
 func (c *EnvironmentsClient) Connection() *grpc.ClientConn {
 	return c.internalClient.Connection()
 }
@@ -219,6 +312,31 @@ func (c *EnvironmentsClient) GetEnvironmentHistory(ctx context.Context, req *dia
 	return c.internalClient.GetEnvironmentHistory(ctx, req, opts...)
 }
 
+// GetLocation gets information about a location.
+func (c *EnvironmentsClient) GetLocation(ctx context.Context, req *locationpb.GetLocationRequest, opts ...gax.CallOption) (*locationpb.Location, error) {
+	return c.internalClient.GetLocation(ctx, req, opts...)
+}
+
+// ListLocations lists information about the supported locations for this service.
+func (c *EnvironmentsClient) ListLocations(ctx context.Context, req *locationpb.ListLocationsRequest, opts ...gax.CallOption) *LocationIterator {
+	return c.internalClient.ListLocations(ctx, req, opts...)
+}
+
+// CancelOperation is a utility method from google.longrunning.Operations.
+func (c *EnvironmentsClient) CancelOperation(ctx context.Context, req *longrunningpb.CancelOperationRequest, opts ...gax.CallOption) error {
+	return c.internalClient.CancelOperation(ctx, req, opts...)
+}
+
+// GetOperation is a utility method from google.longrunning.Operations.
+func (c *EnvironmentsClient) GetOperation(ctx context.Context, req *longrunningpb.GetOperationRequest, opts ...gax.CallOption) (*longrunningpb.Operation, error) {
+	return c.internalClient.GetOperation(ctx, req, opts...)
+}
+
+// ListOperations is a utility method from google.longrunning.Operations.
+func (c *EnvironmentsClient) ListOperations(ctx context.Context, req *longrunningpb.ListOperationsRequest, opts ...gax.CallOption) *OperationIterator {
+	return c.internalClient.ListOperations(ctx, req, opts...)
+}
+
 // environmentsGRPCClient is a client for interacting with Dialogflow API over gRPC transport.
 //
 // Methods, except Close, may be called concurrently. However, fields must not be modified concurrently with method calls.
@@ -234,6 +352,10 @@ type environmentsGRPCClient struct {
 
 	// The gRPC API client.
 	environmentsClient dialogflowpb.EnvironmentsClient
+
+	operationsClient longrunningpb.OperationsClient
+
+	locationsClient locationpb.LocationsClient
 
 	// The x-goog-* metadata to be sent with each request.
 	xGoogMetadata metadata.MD
@@ -269,6 +391,8 @@ func NewEnvironmentsClient(ctx context.Context, opts ...option.ClientOption) (*E
 		disableDeadlines:   disableDeadlines,
 		environmentsClient: dialogflowpb.NewEnvironmentsClient(connPool),
 		CallOptions:        &client.CallOptions,
+		operationsClient:   longrunningpb.NewOperationsClient(connPool),
+		locationsClient:    locationpb.NewLocationsClient(connPool),
 	}
 	c.setGoogleClientInfo()
 
@@ -279,7 +403,8 @@ func NewEnvironmentsClient(ctx context.Context, opts ...option.ClientOption) (*E
 
 // Connection returns a connection to the API service.
 //
-// Deprecated.
+// Deprecated: Connections are now pooled so this method does not always
+// return the same resource.
 func (c *environmentsGRPCClient) Connection() *grpc.ClientConn {
 	return c.connPool.Conn()
 }
@@ -289,7 +414,7 @@ func (c *environmentsGRPCClient) Connection() *grpc.ClientConn {
 // use by Google-written clients.
 func (c *environmentsGRPCClient) setGoogleClientInfo(keyval ...string) {
 	kv := append([]string{"gl-go", versionGo()}, keyval...)
-	kv = append(kv, "gapic", versionClient, "gax", gax.Version, "grpc", grpc.Version)
+	kv = append(kv, "gapic", getVersionClient(), "gax", gax.Version, "grpc", grpc.Version)
 	c.xGoogMetadata = metadata.Pairs("x-goog-api-client", gax.XGoogHeader(kv...))
 }
 
@@ -299,8 +424,77 @@ func (c *environmentsGRPCClient) Close() error {
 	return c.connPool.Close()
 }
 
+// Methods, except Close, may be called concurrently. However, fields must not be modified concurrently with method calls.
+type environmentsRESTClient struct {
+	// The http endpoint to connect to.
+	endpoint string
+
+	// The http client.
+	httpClient *http.Client
+
+	// The x-goog-* metadata to be sent with each request.
+	xGoogMetadata metadata.MD
+
+	// Points back to the CallOptions field of the containing EnvironmentsClient
+	CallOptions **EnvironmentsCallOptions
+}
+
+// NewEnvironmentsRESTClient creates a new environments rest client.
+//
+// Service for managing Environments.
+func NewEnvironmentsRESTClient(ctx context.Context, opts ...option.ClientOption) (*EnvironmentsClient, error) {
+	clientOpts := append(defaultEnvironmentsRESTClientOptions(), opts...)
+	httpClient, endpoint, err := httptransport.NewClient(ctx, clientOpts...)
+	if err != nil {
+		return nil, err
+	}
+
+	callOpts := defaultEnvironmentsRESTCallOptions()
+	c := &environmentsRESTClient{
+		endpoint:    endpoint,
+		httpClient:  httpClient,
+		CallOptions: &callOpts,
+	}
+	c.setGoogleClientInfo()
+
+	return &EnvironmentsClient{internalClient: c, CallOptions: callOpts}, nil
+}
+
+func defaultEnvironmentsRESTClientOptions() []option.ClientOption {
+	return []option.ClientOption{
+		internaloption.WithDefaultEndpoint("https://dialogflow.googleapis.com"),
+		internaloption.WithDefaultMTLSEndpoint("https://dialogflow.mtls.googleapis.com"),
+		internaloption.WithDefaultAudience("https://dialogflow.googleapis.com/"),
+		internaloption.WithDefaultScopes(DefaultAuthScopes()...),
+	}
+}
+
+// setGoogleClientInfo sets the name and version of the application in
+// the `x-goog-api-client` header passed on each request. Intended for
+// use by Google-written clients.
+func (c *environmentsRESTClient) setGoogleClientInfo(keyval ...string) {
+	kv := append([]string{"gl-go", versionGo()}, keyval...)
+	kv = append(kv, "gapic", getVersionClient(), "gax", gax.Version, "rest", "UNKNOWN")
+	c.xGoogMetadata = metadata.Pairs("x-goog-api-client", gax.XGoogHeader(kv...))
+}
+
+// Close closes the connection to the API service. The user should invoke this when
+// the client is no longer required.
+func (c *environmentsRESTClient) Close() error {
+	// Replace httpClient with nil to force cleanup.
+	c.httpClient = nil
+	return nil
+}
+
+// Connection returns a connection to the API service.
+//
+// Deprecated: This method always returns nil.
+func (c *environmentsRESTClient) Connection() *grpc.ClientConn {
+	return nil
+}
 func (c *environmentsGRPCClient) ListEnvironments(ctx context.Context, req *dialogflowpb.ListEnvironmentsRequest, opts ...gax.CallOption) *EnvironmentIterator {
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).ListEnvironments[0:len((*c.CallOptions).ListEnvironments):len((*c.CallOptions).ListEnvironments)], opts...)
 	it := &EnvironmentIterator{}
@@ -350,6 +544,7 @@ func (c *environmentsGRPCClient) GetEnvironment(ctx context.Context, req *dialog
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).GetEnvironment[0:len((*c.CallOptions).GetEnvironment):len((*c.CallOptions).GetEnvironment)], opts...)
 	var resp *dialogflowpb.Environment
@@ -371,6 +566,7 @@ func (c *environmentsGRPCClient) CreateEnvironment(ctx context.Context, req *dia
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).CreateEnvironment[0:len((*c.CallOptions).CreateEnvironment):len((*c.CallOptions).CreateEnvironment)], opts...)
 	var resp *dialogflowpb.Environment
@@ -392,6 +588,7 @@ func (c *environmentsGRPCClient) UpdateEnvironment(ctx context.Context, req *dia
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "environment.name", url.QueryEscape(req.GetEnvironment().GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).UpdateEnvironment[0:len((*c.CallOptions).UpdateEnvironment):len((*c.CallOptions).UpdateEnvironment)], opts...)
 	var resp *dialogflowpb.Environment
@@ -413,6 +610,7 @@ func (c *environmentsGRPCClient) DeleteEnvironment(ctx context.Context, req *dia
 		ctx = cctx
 	}
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).DeleteEnvironment[0:len((*c.CallOptions).DeleteEnvironment):len((*c.CallOptions).DeleteEnvironment)], opts...)
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
@@ -425,6 +623,7 @@ func (c *environmentsGRPCClient) DeleteEnvironment(ctx context.Context, req *dia
 
 func (c *environmentsGRPCClient) GetEnvironmentHistory(ctx context.Context, req *dialogflowpb.GetEnvironmentHistoryRequest, opts ...gax.CallOption) *EnvironmentHistory_EntryIterator {
 	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
+
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
 	opts = append((*c.CallOptions).GetEnvironmentHistory[0:len((*c.CallOptions).GetEnvironmentHistory):len((*c.CallOptions).GetEnvironmentHistory)], opts...)
 	it := &EnvironmentHistory_EntryIterator{}
@@ -451,6 +650,907 @@ func (c *environmentsGRPCClient) GetEnvironmentHistory(ctx context.Context, req 
 		it.Response = resp
 		return resp.GetEntries(), resp.GetNextPageToken(), nil
 	}
+	fetch := func(pageSize int, pageToken string) (string, error) {
+		items, nextPageToken, err := it.InternalFetch(pageSize, pageToken)
+		if err != nil {
+			return "", err
+		}
+		it.items = append(it.items, items...)
+		return nextPageToken, nil
+	}
+
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
+	it.pageInfo.MaxSize = int(req.GetPageSize())
+	it.pageInfo.Token = req.GetPageToken()
+
+	return it
+}
+
+func (c *environmentsGRPCClient) GetLocation(ctx context.Context, req *locationpb.GetLocationRequest, opts ...gax.CallOption) (*locationpb.Location, error) {
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
+	opts = append((*c.CallOptions).GetLocation[0:len((*c.CallOptions).GetLocation):len((*c.CallOptions).GetLocation)], opts...)
+	var resp *locationpb.Location
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		resp, err = c.locationsClient.GetLocation(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (c *environmentsGRPCClient) ListLocations(ctx context.Context, req *locationpb.ListLocationsRequest, opts ...gax.CallOption) *LocationIterator {
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
+	opts = append((*c.CallOptions).ListLocations[0:len((*c.CallOptions).ListLocations):len((*c.CallOptions).ListLocations)], opts...)
+	it := &LocationIterator{}
+	req = proto.Clone(req).(*locationpb.ListLocationsRequest)
+	it.InternalFetch = func(pageSize int, pageToken string) ([]*locationpb.Location, string, error) {
+		resp := &locationpb.ListLocationsResponse{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
+		if pageSize > math.MaxInt32 {
+			req.PageSize = math.MaxInt32
+		} else if pageSize != 0 {
+			req.PageSize = int32(pageSize)
+		}
+		err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+			var err error
+			resp, err = c.locationsClient.ListLocations(ctx, req, settings.GRPC...)
+			return err
+		}, opts...)
+		if err != nil {
+			return nil, "", err
+		}
+
+		it.Response = resp
+		return resp.GetLocations(), resp.GetNextPageToken(), nil
+	}
+	fetch := func(pageSize int, pageToken string) (string, error) {
+		items, nextPageToken, err := it.InternalFetch(pageSize, pageToken)
+		if err != nil {
+			return "", err
+		}
+		it.items = append(it.items, items...)
+		return nextPageToken, nil
+	}
+
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
+	it.pageInfo.MaxSize = int(req.GetPageSize())
+	it.pageInfo.Token = req.GetPageToken()
+
+	return it
+}
+
+func (c *environmentsGRPCClient) CancelOperation(ctx context.Context, req *longrunningpb.CancelOperationRequest, opts ...gax.CallOption) error {
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
+	opts = append((*c.CallOptions).CancelOperation[0:len((*c.CallOptions).CancelOperation):len((*c.CallOptions).CancelOperation)], opts...)
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		_, err = c.operationsClient.CancelOperation(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	return err
+}
+
+func (c *environmentsGRPCClient) GetOperation(ctx context.Context, req *longrunningpb.GetOperationRequest, opts ...gax.CallOption) (*longrunningpb.Operation, error) {
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
+	opts = append((*c.CallOptions).GetOperation[0:len((*c.CallOptions).GetOperation):len((*c.CallOptions).GetOperation)], opts...)
+	var resp *longrunningpb.Operation
+	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		var err error
+		resp, err = c.operationsClient.GetOperation(ctx, req, settings.GRPC...)
+		return err
+	}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (c *environmentsGRPCClient) ListOperations(ctx context.Context, req *longrunningpb.ListOperationsRequest, opts ...gax.CallOption) *OperationIterator {
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
+	opts = append((*c.CallOptions).ListOperations[0:len((*c.CallOptions).ListOperations):len((*c.CallOptions).ListOperations)], opts...)
+	it := &OperationIterator{}
+	req = proto.Clone(req).(*longrunningpb.ListOperationsRequest)
+	it.InternalFetch = func(pageSize int, pageToken string) ([]*longrunningpb.Operation, string, error) {
+		resp := &longrunningpb.ListOperationsResponse{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
+		if pageSize > math.MaxInt32 {
+			req.PageSize = math.MaxInt32
+		} else if pageSize != 0 {
+			req.PageSize = int32(pageSize)
+		}
+		err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+			var err error
+			resp, err = c.operationsClient.ListOperations(ctx, req, settings.GRPC...)
+			return err
+		}, opts...)
+		if err != nil {
+			return nil, "", err
+		}
+
+		it.Response = resp
+		return resp.GetOperations(), resp.GetNextPageToken(), nil
+	}
+	fetch := func(pageSize int, pageToken string) (string, error) {
+		items, nextPageToken, err := it.InternalFetch(pageSize, pageToken)
+		if err != nil {
+			return "", err
+		}
+		it.items = append(it.items, items...)
+		return nextPageToken, nil
+	}
+
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
+	it.pageInfo.MaxSize = int(req.GetPageSize())
+	it.pageInfo.Token = req.GetPageToken()
+
+	return it
+}
+
+// ListEnvironments returns the list of all non-default environments of the specified agent.
+func (c *environmentsRESTClient) ListEnvironments(ctx context.Context, req *dialogflowpb.ListEnvironmentsRequest, opts ...gax.CallOption) *EnvironmentIterator {
+	it := &EnvironmentIterator{}
+	req = proto.Clone(req).(*dialogflowpb.ListEnvironmentsRequest)
+	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	it.InternalFetch = func(pageSize int, pageToken string) ([]*dialogflowpb.Environment, string, error) {
+		resp := &dialogflowpb.ListEnvironmentsResponse{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
+		if pageSize > math.MaxInt32 {
+			req.PageSize = math.MaxInt32
+		} else if pageSize != 0 {
+			req.PageSize = int32(pageSize)
+		}
+		baseUrl, err := url.Parse(c.endpoint)
+		if err != nil {
+			return nil, "", err
+		}
+		baseUrl.Path += fmt.Sprintf("/v2/%v/environments", req.GetParent())
+
+		params := url.Values{}
+		params.Add("$alt", "json;enum-encoding=int")
+		if req.GetPageSize() != 0 {
+			params.Add("pageSize", fmt.Sprintf("%v", req.GetPageSize()))
+		}
+		if req.GetPageToken() != "" {
+			params.Add("pageToken", fmt.Sprintf("%v", req.GetPageToken()))
+		}
+
+		baseUrl.RawQuery = params.Encode()
+
+		// Build HTTP headers from client and context metadata.
+		headers := buildHeaders(ctx, c.xGoogMetadata, metadata.Pairs("Content-Type", "application/json"))
+		e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+			if settings.Path != "" {
+				baseUrl.Path = settings.Path
+			}
+			httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
+			if err != nil {
+				return err
+			}
+			httpReq.Header = headers
+
+			httpRsp, err := c.httpClient.Do(httpReq)
+			if err != nil {
+				return err
+			}
+			defer httpRsp.Body.Close()
+
+			if err = googleapi.CheckResponse(httpRsp); err != nil {
+				return err
+			}
+
+			buf, err := ioutil.ReadAll(httpRsp.Body)
+			if err != nil {
+				return err
+			}
+
+			if err := unm.Unmarshal(buf, resp); err != nil {
+				return maybeUnknownEnum(err)
+			}
+
+			return nil
+		}, opts...)
+		if e != nil {
+			return nil, "", e
+		}
+		it.Response = resp
+		return resp.GetEnvironments(), resp.GetNextPageToken(), nil
+	}
+
+	fetch := func(pageSize int, pageToken string) (string, error) {
+		items, nextPageToken, err := it.InternalFetch(pageSize, pageToken)
+		if err != nil {
+			return "", err
+		}
+		it.items = append(it.items, items...)
+		return nextPageToken, nil
+	}
+
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
+	it.pageInfo.MaxSize = int(req.GetPageSize())
+	it.pageInfo.Token = req.GetPageToken()
+
+	return it
+}
+
+// GetEnvironment retrieves the specified agent environment.
+func (c *environmentsRESTClient) GetEnvironment(ctx context.Context, req *dialogflowpb.GetEnvironmentRequest, opts ...gax.CallOption) (*dialogflowpb.Environment, error) {
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return nil, err
+	}
+	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
+
+	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
+
+	baseUrl.RawQuery = params.Encode()
+
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	opts = append((*c.CallOptions).GetEnvironment[0:len((*c.CallOptions).GetEnvironment):len((*c.CallOptions).GetEnvironment)], opts...)
+	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	resp := &dialogflowpb.Environment{}
+	e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
+
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		if err = googleapi.CheckResponse(httpRsp); err != nil {
+			return err
+		}
+
+		buf, err := ioutil.ReadAll(httpRsp.Body)
+		if err != nil {
+			return err
+		}
+
+		if err := unm.Unmarshal(buf, resp); err != nil {
+			return maybeUnknownEnum(err)
+		}
+
+		return nil
+	}, opts...)
+	if e != nil {
+		return nil, e
+	}
+	return resp, nil
+}
+
+// CreateEnvironment creates an agent environment.
+func (c *environmentsRESTClient) CreateEnvironment(ctx context.Context, req *dialogflowpb.CreateEnvironmentRequest, opts ...gax.CallOption) (*dialogflowpb.Environment, error) {
+	m := protojson.MarshalOptions{AllowPartial: true, UseEnumNumbers: true}
+	body := req.GetEnvironment()
+	jsonReq, err := m.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return nil, err
+	}
+	baseUrl.Path += fmt.Sprintf("/v2/%v/environments", req.GetParent())
+
+	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
+	params.Add("environmentId", fmt.Sprintf("%v", req.GetEnvironmentId()))
+
+	baseUrl.RawQuery = params.Encode()
+
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "parent", url.QueryEscape(req.GetParent())))
+
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	opts = append((*c.CallOptions).CreateEnvironment[0:len((*c.CallOptions).CreateEnvironment):len((*c.CallOptions).CreateEnvironment)], opts...)
+	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	resp := &dialogflowpb.Environment{}
+	e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("POST", baseUrl.String(), bytes.NewReader(jsonReq))
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
+
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		if err = googleapi.CheckResponse(httpRsp); err != nil {
+			return err
+		}
+
+		buf, err := ioutil.ReadAll(httpRsp.Body)
+		if err != nil {
+			return err
+		}
+
+		if err := unm.Unmarshal(buf, resp); err != nil {
+			return maybeUnknownEnum(err)
+		}
+
+		return nil
+	}, opts...)
+	if e != nil {
+		return nil, e
+	}
+	return resp, nil
+}
+
+// UpdateEnvironment updates the specified agent environment.
+//
+// This method allows you to deploy new agent versions into the environment.
+// When an environment is pointed to a new agent version by setting
+// environment.agent_version, the environment is temporarily set to the
+// LOADING state. During that time, the environment continues serving the
+// previous version of the agent. After the new agent version is done loading,
+// the environment is set back to the RUNNING state.
+// You can use “-” as Environment ID in environment name to update an agent
+// version in the default environment. WARNING: this will negate all recent
+// changes to the draft agent and can’t be undone. You may want to save the
+// draft agent to a version before calling this method.
+func (c *environmentsRESTClient) UpdateEnvironment(ctx context.Context, req *dialogflowpb.UpdateEnvironmentRequest, opts ...gax.CallOption) (*dialogflowpb.Environment, error) {
+	m := protojson.MarshalOptions{AllowPartial: true, UseEnumNumbers: true}
+	body := req.GetEnvironment()
+	jsonReq, err := m.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return nil, err
+	}
+	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetEnvironment().GetName())
+
+	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
+	if req.GetAllowLoadToDraftAndDiscardChanges() {
+		params.Add("allowLoadToDraftAndDiscardChanges", fmt.Sprintf("%v", req.GetAllowLoadToDraftAndDiscardChanges()))
+	}
+	if req.GetUpdateMask() != nil {
+		updateMask, err := protojson.Marshal(req.GetUpdateMask())
+		if err != nil {
+			return nil, err
+		}
+		params.Add("updateMask", string(updateMask))
+	}
+
+	baseUrl.RawQuery = params.Encode()
+
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "environment.name", url.QueryEscape(req.GetEnvironment().GetName())))
+
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	opts = append((*c.CallOptions).UpdateEnvironment[0:len((*c.CallOptions).UpdateEnvironment):len((*c.CallOptions).UpdateEnvironment)], opts...)
+	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	resp := &dialogflowpb.Environment{}
+	e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("PATCH", baseUrl.String(), bytes.NewReader(jsonReq))
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
+
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		if err = googleapi.CheckResponse(httpRsp); err != nil {
+			return err
+		}
+
+		buf, err := ioutil.ReadAll(httpRsp.Body)
+		if err != nil {
+			return err
+		}
+
+		if err := unm.Unmarshal(buf, resp); err != nil {
+			return maybeUnknownEnum(err)
+		}
+
+		return nil
+	}, opts...)
+	if e != nil {
+		return nil, e
+	}
+	return resp, nil
+}
+
+// DeleteEnvironment deletes the specified agent environment.
+func (c *environmentsRESTClient) DeleteEnvironment(ctx context.Context, req *dialogflowpb.DeleteEnvironmentRequest, opts ...gax.CallOption) error {
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return err
+	}
+	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
+
+	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
+
+	baseUrl.RawQuery = params.Encode()
+
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	return gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("DELETE", baseUrl.String(), nil)
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
+
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		// Returns nil if there is no error, otherwise wraps
+		// the response code and body into a non-nil error
+		return googleapi.CheckResponse(httpRsp)
+	}, opts...)
+}
+
+// GetEnvironmentHistory gets the history of the specified environment.
+func (c *environmentsRESTClient) GetEnvironmentHistory(ctx context.Context, req *dialogflowpb.GetEnvironmentHistoryRequest, opts ...gax.CallOption) *EnvironmentHistory_EntryIterator {
+	it := &EnvironmentHistory_EntryIterator{}
+	req = proto.Clone(req).(*dialogflowpb.GetEnvironmentHistoryRequest)
+	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	it.InternalFetch = func(pageSize int, pageToken string) ([]*dialogflowpb.EnvironmentHistory_Entry, string, error) {
+		resp := &dialogflowpb.EnvironmentHistory{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
+		if pageSize > math.MaxInt32 {
+			req.PageSize = math.MaxInt32
+		} else if pageSize != 0 {
+			req.PageSize = int32(pageSize)
+		}
+		baseUrl, err := url.Parse(c.endpoint)
+		if err != nil {
+			return nil, "", err
+		}
+		baseUrl.Path += fmt.Sprintf("/v2/%v/history", req.GetParent())
+
+		params := url.Values{}
+		params.Add("$alt", "json;enum-encoding=int")
+		if req.GetPageSize() != 0 {
+			params.Add("pageSize", fmt.Sprintf("%v", req.GetPageSize()))
+		}
+		if req.GetPageToken() != "" {
+			params.Add("pageToken", fmt.Sprintf("%v", req.GetPageToken()))
+		}
+
+		baseUrl.RawQuery = params.Encode()
+
+		// Build HTTP headers from client and context metadata.
+		headers := buildHeaders(ctx, c.xGoogMetadata, metadata.Pairs("Content-Type", "application/json"))
+		e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+			if settings.Path != "" {
+				baseUrl.Path = settings.Path
+			}
+			httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
+			if err != nil {
+				return err
+			}
+			httpReq.Header = headers
+
+			httpRsp, err := c.httpClient.Do(httpReq)
+			if err != nil {
+				return err
+			}
+			defer httpRsp.Body.Close()
+
+			if err = googleapi.CheckResponse(httpRsp); err != nil {
+				return err
+			}
+
+			buf, err := ioutil.ReadAll(httpRsp.Body)
+			if err != nil {
+				return err
+			}
+
+			if err := unm.Unmarshal(buf, resp); err != nil {
+				return maybeUnknownEnum(err)
+			}
+
+			return nil
+		}, opts...)
+		if e != nil {
+			return nil, "", e
+		}
+		it.Response = resp
+		return resp.GetEntries(), resp.GetNextPageToken(), nil
+	}
+
+	fetch := func(pageSize int, pageToken string) (string, error) {
+		items, nextPageToken, err := it.InternalFetch(pageSize, pageToken)
+		if err != nil {
+			return "", err
+		}
+		it.items = append(it.items, items...)
+		return nextPageToken, nil
+	}
+
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
+	it.pageInfo.MaxSize = int(req.GetPageSize())
+	it.pageInfo.Token = req.GetPageToken()
+
+	return it
+}
+
+// GetLocation gets information about a location.
+func (c *environmentsRESTClient) GetLocation(ctx context.Context, req *locationpb.GetLocationRequest, opts ...gax.CallOption) (*locationpb.Location, error) {
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return nil, err
+	}
+	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
+
+	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
+
+	baseUrl.RawQuery = params.Encode()
+
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	opts = append((*c.CallOptions).GetLocation[0:len((*c.CallOptions).GetLocation):len((*c.CallOptions).GetLocation)], opts...)
+	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	resp := &locationpb.Location{}
+	e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
+
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		if err = googleapi.CheckResponse(httpRsp); err != nil {
+			return err
+		}
+
+		buf, err := ioutil.ReadAll(httpRsp.Body)
+		if err != nil {
+			return err
+		}
+
+		if err := unm.Unmarshal(buf, resp); err != nil {
+			return maybeUnknownEnum(err)
+		}
+
+		return nil
+	}, opts...)
+	if e != nil {
+		return nil, e
+	}
+	return resp, nil
+}
+
+// ListLocations lists information about the supported locations for this service.
+func (c *environmentsRESTClient) ListLocations(ctx context.Context, req *locationpb.ListLocationsRequest, opts ...gax.CallOption) *LocationIterator {
+	it := &LocationIterator{}
+	req = proto.Clone(req).(*locationpb.ListLocationsRequest)
+	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	it.InternalFetch = func(pageSize int, pageToken string) ([]*locationpb.Location, string, error) {
+		resp := &locationpb.ListLocationsResponse{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
+		if pageSize > math.MaxInt32 {
+			req.PageSize = math.MaxInt32
+		} else if pageSize != 0 {
+			req.PageSize = int32(pageSize)
+		}
+		baseUrl, err := url.Parse(c.endpoint)
+		if err != nil {
+			return nil, "", err
+		}
+		baseUrl.Path += fmt.Sprintf("/v2/%v/locations", req.GetName())
+
+		params := url.Values{}
+		params.Add("$alt", "json;enum-encoding=int")
+		if req.GetFilter() != "" {
+			params.Add("filter", fmt.Sprintf("%v", req.GetFilter()))
+		}
+		if req.GetPageSize() != 0 {
+			params.Add("pageSize", fmt.Sprintf("%v", req.GetPageSize()))
+		}
+		if req.GetPageToken() != "" {
+			params.Add("pageToken", fmt.Sprintf("%v", req.GetPageToken()))
+		}
+
+		baseUrl.RawQuery = params.Encode()
+
+		// Build HTTP headers from client and context metadata.
+		headers := buildHeaders(ctx, c.xGoogMetadata, metadata.Pairs("Content-Type", "application/json"))
+		e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+			if settings.Path != "" {
+				baseUrl.Path = settings.Path
+			}
+			httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
+			if err != nil {
+				return err
+			}
+			httpReq.Header = headers
+
+			httpRsp, err := c.httpClient.Do(httpReq)
+			if err != nil {
+				return err
+			}
+			defer httpRsp.Body.Close()
+
+			if err = googleapi.CheckResponse(httpRsp); err != nil {
+				return err
+			}
+
+			buf, err := ioutil.ReadAll(httpRsp.Body)
+			if err != nil {
+				return err
+			}
+
+			if err := unm.Unmarshal(buf, resp); err != nil {
+				return maybeUnknownEnum(err)
+			}
+
+			return nil
+		}, opts...)
+		if e != nil {
+			return nil, "", e
+		}
+		it.Response = resp
+		return resp.GetLocations(), resp.GetNextPageToken(), nil
+	}
+
+	fetch := func(pageSize int, pageToken string) (string, error) {
+		items, nextPageToken, err := it.InternalFetch(pageSize, pageToken)
+		if err != nil {
+			return "", err
+		}
+		it.items = append(it.items, items...)
+		return nextPageToken, nil
+	}
+
+	it.pageInfo, it.nextFunc = iterator.NewPageInfo(fetch, it.bufLen, it.takeBuf)
+	it.pageInfo.MaxSize = int(req.GetPageSize())
+	it.pageInfo.Token = req.GetPageToken()
+
+	return it
+}
+
+// CancelOperation is a utility method from google.longrunning.Operations.
+func (c *environmentsRESTClient) CancelOperation(ctx context.Context, req *longrunningpb.CancelOperationRequest, opts ...gax.CallOption) error {
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return err
+	}
+	baseUrl.Path += fmt.Sprintf("/v2/%v:cancel", req.GetName())
+
+	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
+
+	baseUrl.RawQuery = params.Encode()
+
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	return gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("POST", baseUrl.String(), nil)
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
+
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		// Returns nil if there is no error, otherwise wraps
+		// the response code and body into a non-nil error
+		return googleapi.CheckResponse(httpRsp)
+	}, opts...)
+}
+
+// GetOperation is a utility method from google.longrunning.Operations.
+func (c *environmentsRESTClient) GetOperation(ctx context.Context, req *longrunningpb.GetOperationRequest, opts ...gax.CallOption) (*longrunningpb.Operation, error) {
+	baseUrl, err := url.Parse(c.endpoint)
+	if err != nil {
+		return nil, err
+	}
+	baseUrl.Path += fmt.Sprintf("/v2/%v", req.GetName())
+
+	params := url.Values{}
+	params.Add("$alt", "json;enum-encoding=int")
+
+	baseUrl.RawQuery = params.Encode()
+
+	// Build HTTP headers from client and context metadata.
+	md := metadata.Pairs("x-goog-request-params", fmt.Sprintf("%s=%v", "name", url.QueryEscape(req.GetName())))
+
+	headers := buildHeaders(ctx, c.xGoogMetadata, md, metadata.Pairs("Content-Type", "application/json"))
+	opts = append((*c.CallOptions).GetOperation[0:len((*c.CallOptions).GetOperation):len((*c.CallOptions).GetOperation)], opts...)
+	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	resp := &longrunningpb.Operation{}
+	e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+		if settings.Path != "" {
+			baseUrl.Path = settings.Path
+		}
+		httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
+		if err != nil {
+			return err
+		}
+		httpReq = httpReq.WithContext(ctx)
+		httpReq.Header = headers
+
+		httpRsp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			return err
+		}
+		defer httpRsp.Body.Close()
+
+		if err = googleapi.CheckResponse(httpRsp); err != nil {
+			return err
+		}
+
+		buf, err := ioutil.ReadAll(httpRsp.Body)
+		if err != nil {
+			return err
+		}
+
+		if err := unm.Unmarshal(buf, resp); err != nil {
+			return maybeUnknownEnum(err)
+		}
+
+		return nil
+	}, opts...)
+	if e != nil {
+		return nil, e
+	}
+	return resp, nil
+}
+
+// ListOperations is a utility method from google.longrunning.Operations.
+func (c *environmentsRESTClient) ListOperations(ctx context.Context, req *longrunningpb.ListOperationsRequest, opts ...gax.CallOption) *OperationIterator {
+	it := &OperationIterator{}
+	req = proto.Clone(req).(*longrunningpb.ListOperationsRequest)
+	unm := protojson.UnmarshalOptions{AllowPartial: true, DiscardUnknown: true}
+	it.InternalFetch = func(pageSize int, pageToken string) ([]*longrunningpb.Operation, string, error) {
+		resp := &longrunningpb.ListOperationsResponse{}
+		if pageToken != "" {
+			req.PageToken = pageToken
+		}
+		if pageSize > math.MaxInt32 {
+			req.PageSize = math.MaxInt32
+		} else if pageSize != 0 {
+			req.PageSize = int32(pageSize)
+		}
+		baseUrl, err := url.Parse(c.endpoint)
+		if err != nil {
+			return nil, "", err
+		}
+		baseUrl.Path += fmt.Sprintf("/v2/%v/operations", req.GetName())
+
+		params := url.Values{}
+		params.Add("$alt", "json;enum-encoding=int")
+		if req.GetFilter() != "" {
+			params.Add("filter", fmt.Sprintf("%v", req.GetFilter()))
+		}
+		if req.GetPageSize() != 0 {
+			params.Add("pageSize", fmt.Sprintf("%v", req.GetPageSize()))
+		}
+		if req.GetPageToken() != "" {
+			params.Add("pageToken", fmt.Sprintf("%v", req.GetPageToken()))
+		}
+
+		baseUrl.RawQuery = params.Encode()
+
+		// Build HTTP headers from client and context metadata.
+		headers := buildHeaders(ctx, c.xGoogMetadata, metadata.Pairs("Content-Type", "application/json"))
+		e := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
+			if settings.Path != "" {
+				baseUrl.Path = settings.Path
+			}
+			httpReq, err := http.NewRequest("GET", baseUrl.String(), nil)
+			if err != nil {
+				return err
+			}
+			httpReq.Header = headers
+
+			httpRsp, err := c.httpClient.Do(httpReq)
+			if err != nil {
+				return err
+			}
+			defer httpRsp.Body.Close()
+
+			if err = googleapi.CheckResponse(httpRsp); err != nil {
+				return err
+			}
+
+			buf, err := ioutil.ReadAll(httpRsp.Body)
+			if err != nil {
+				return err
+			}
+
+			if err := unm.Unmarshal(buf, resp); err != nil {
+				return maybeUnknownEnum(err)
+			}
+
+			return nil
+		}, opts...)
+		if e != nil {
+			return nil, "", e
+		}
+		it.Response = resp
+		return resp.GetOperations(), resp.GetNextPageToken(), nil
+	}
+
 	fetch := func(pageSize int, pageToken string) (string, error) {
 		items, nextPageToken, err := it.InternalFetch(pageSize, pageToken)
 		if err != nil {

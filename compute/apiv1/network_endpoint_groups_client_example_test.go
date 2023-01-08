@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,12 +20,17 @@ import (
 	"context"
 
 	compute "cloud.google.com/go/compute/apiv1"
+	computepb "cloud.google.com/go/compute/apiv1/computepb"
 	"google.golang.org/api/iterator"
-	computepb "google.golang.org/genproto/googleapis/cloud/compute/v1"
 )
 
 func ExampleNewNetworkEndpointGroupsRESTClient() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNetworkEndpointGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -38,6 +43,11 @@ func ExampleNewNetworkEndpointGroupsRESTClient() {
 
 func ExampleNetworkEndpointGroupsClient_AggregatedList() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNetworkEndpointGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -46,7 +56,7 @@ func ExampleNetworkEndpointGroupsClient_AggregatedList() {
 
 	req := &computepb.AggregatedListNetworkEndpointGroupsRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#AggregatedListNetworkEndpointGroupsRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#AggregatedListNetworkEndpointGroupsRequest.
 	}
 	it := c.AggregatedList(ctx, req)
 	for {
@@ -64,6 +74,11 @@ func ExampleNetworkEndpointGroupsClient_AggregatedList() {
 
 func ExampleNetworkEndpointGroupsClient_AttachNetworkEndpoints() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNetworkEndpointGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -72,18 +87,26 @@ func ExampleNetworkEndpointGroupsClient_AttachNetworkEndpoints() {
 
 	req := &computepb.AttachNetworkEndpointsNetworkEndpointGroupRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#AttachNetworkEndpointsNetworkEndpointGroupRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#AttachNetworkEndpointsNetworkEndpointGroupRequest.
 	}
-	resp, err := c.AttachNetworkEndpoints(ctx, req)
+	op, err := c.AttachNetworkEndpoints(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleNetworkEndpointGroupsClient_Delete() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNetworkEndpointGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -92,18 +115,26 @@ func ExampleNetworkEndpointGroupsClient_Delete() {
 
 	req := &computepb.DeleteNetworkEndpointGroupRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#DeleteNetworkEndpointGroupRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#DeleteNetworkEndpointGroupRequest.
 	}
-	resp, err := c.Delete(ctx, req)
+	op, err := c.Delete(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleNetworkEndpointGroupsClient_DetachNetworkEndpoints() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNetworkEndpointGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -112,18 +143,26 @@ func ExampleNetworkEndpointGroupsClient_DetachNetworkEndpoints() {
 
 	req := &computepb.DetachNetworkEndpointsNetworkEndpointGroupRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#DetachNetworkEndpointsNetworkEndpointGroupRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#DetachNetworkEndpointsNetworkEndpointGroupRequest.
 	}
-	resp, err := c.DetachNetworkEndpoints(ctx, req)
+	op, err := c.DetachNetworkEndpoints(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleNetworkEndpointGroupsClient_Get() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNetworkEndpointGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -132,7 +171,7 @@ func ExampleNetworkEndpointGroupsClient_Get() {
 
 	req := &computepb.GetNetworkEndpointGroupRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#GetNetworkEndpointGroupRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#GetNetworkEndpointGroupRequest.
 	}
 	resp, err := c.Get(ctx, req)
 	if err != nil {
@@ -144,6 +183,11 @@ func ExampleNetworkEndpointGroupsClient_Get() {
 
 func ExampleNetworkEndpointGroupsClient_Insert() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNetworkEndpointGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -152,18 +196,26 @@ func ExampleNetworkEndpointGroupsClient_Insert() {
 
 	req := &computepb.InsertNetworkEndpointGroupRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#InsertNetworkEndpointGroupRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#InsertNetworkEndpointGroupRequest.
 	}
-	resp, err := c.Insert(ctx, req)
+	op, err := c.Insert(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleNetworkEndpointGroupsClient_List() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNetworkEndpointGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -172,7 +224,7 @@ func ExampleNetworkEndpointGroupsClient_List() {
 
 	req := &computepb.ListNetworkEndpointGroupsRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#ListNetworkEndpointGroupsRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#ListNetworkEndpointGroupsRequest.
 	}
 	it := c.List(ctx, req)
 	for {
@@ -190,6 +242,11 @@ func ExampleNetworkEndpointGroupsClient_List() {
 
 func ExampleNetworkEndpointGroupsClient_ListNetworkEndpoints() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNetworkEndpointGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -198,7 +255,7 @@ func ExampleNetworkEndpointGroupsClient_ListNetworkEndpoints() {
 
 	req := &computepb.ListNetworkEndpointsNetworkEndpointGroupsRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#ListNetworkEndpointsNetworkEndpointGroupsRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#ListNetworkEndpointsNetworkEndpointGroupsRequest.
 	}
 	it := c.ListNetworkEndpoints(ctx, req)
 	for {
@@ -216,6 +273,11 @@ func ExampleNetworkEndpointGroupsClient_ListNetworkEndpoints() {
 
 func ExampleNetworkEndpointGroupsClient_TestIamPermissions() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNetworkEndpointGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -224,7 +286,7 @@ func ExampleNetworkEndpointGroupsClient_TestIamPermissions() {
 
 	req := &computepb.TestIamPermissionsNetworkEndpointGroupRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#TestIamPermissionsNetworkEndpointGroupRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#TestIamPermissionsNetworkEndpointGroupRequest.
 	}
 	resp, err := c.TestIamPermissions(ctx, req)
 	if err != nil {

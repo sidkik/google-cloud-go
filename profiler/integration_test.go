@@ -118,13 +118,17 @@ echo "{{.FinishString}}"
 {{ define "integration_backoff" -}}
 {{- template "prologue" . }}
 {{- template "setup" . }}
+
+# Compile first so each spawned process can just use the same binary.
+go build busybench.go
+
 # Do not display commands being run to simplify logging output.
 set +x
 
 # Run benchmarks with agent.
 echo "Starting {{.NumBackoffBenchmarks}} benchmarks."
 for (( i = 0; i < {{.NumBackoffBenchmarks}}; i++ )); do
-	(go run busybench.go --service="{{.Service}}" --duration={{.DurationSec}} \
+	(./busybench --service="{{.Service}}" --duration={{.DurationSec}} \
 		--num_busyworkers=1) |& while read line; \
 		do echo "benchmark $i: ${line}"; done &
 done
@@ -210,7 +214,7 @@ func pstTimeStr() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to initialize PST location: %v", err)
 	}
-	return strings.Replace(time.Now().In(pst).Format("2006-01-02-15-04-05.000000-0700"), ".", "-", -1), nil
+	return strings.ToLower(strings.Replace(time.Now().In(pst).Format("2006-01-02-15-04-05.000000-MST"), ".", "-", -1)), nil
 }
 
 func TestAgentIntegration(t *testing.T) {

@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,12 +20,17 @@ import (
 	"context"
 
 	compute "cloud.google.com/go/compute/apiv1"
+	computepb "cloud.google.com/go/compute/apiv1/computepb"
 	"google.golang.org/api/iterator"
-	computepb "google.golang.org/genproto/googleapis/cloud/compute/v1"
 )
 
 func ExampleNewNodeGroupsRESTClient() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNodeGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -38,6 +43,11 @@ func ExampleNewNodeGroupsRESTClient() {
 
 func ExampleNodeGroupsClient_AddNodes() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNodeGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -46,18 +56,26 @@ func ExampleNodeGroupsClient_AddNodes() {
 
 	req := &computepb.AddNodesNodeGroupRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#AddNodesNodeGroupRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#AddNodesNodeGroupRequest.
 	}
-	resp, err := c.AddNodes(ctx, req)
+	op, err := c.AddNodes(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleNodeGroupsClient_AggregatedList() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNodeGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -66,7 +84,7 @@ func ExampleNodeGroupsClient_AggregatedList() {
 
 	req := &computepb.AggregatedListNodeGroupsRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#AggregatedListNodeGroupsRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#AggregatedListNodeGroupsRequest.
 	}
 	it := c.AggregatedList(ctx, req)
 	for {
@@ -84,6 +102,11 @@ func ExampleNodeGroupsClient_AggregatedList() {
 
 func ExampleNodeGroupsClient_Delete() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNodeGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -92,18 +115,26 @@ func ExampleNodeGroupsClient_Delete() {
 
 	req := &computepb.DeleteNodeGroupRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#DeleteNodeGroupRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#DeleteNodeGroupRequest.
 	}
-	resp, err := c.Delete(ctx, req)
+	op, err := c.Delete(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleNodeGroupsClient_DeleteNodes() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNodeGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -112,18 +143,26 @@ func ExampleNodeGroupsClient_DeleteNodes() {
 
 	req := &computepb.DeleteNodesNodeGroupRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#DeleteNodesNodeGroupRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#DeleteNodesNodeGroupRequest.
 	}
-	resp, err := c.DeleteNodes(ctx, req)
+	op, err := c.DeleteNodes(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleNodeGroupsClient_Get() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNodeGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -132,7 +171,7 @@ func ExampleNodeGroupsClient_Get() {
 
 	req := &computepb.GetNodeGroupRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#GetNodeGroupRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#GetNodeGroupRequest.
 	}
 	resp, err := c.Get(ctx, req)
 	if err != nil {
@@ -144,6 +183,11 @@ func ExampleNodeGroupsClient_Get() {
 
 func ExampleNodeGroupsClient_GetIamPolicy() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNodeGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -152,7 +196,7 @@ func ExampleNodeGroupsClient_GetIamPolicy() {
 
 	req := &computepb.GetIamPolicyNodeGroupRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#GetIamPolicyNodeGroupRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#GetIamPolicyNodeGroupRequest.
 	}
 	resp, err := c.GetIamPolicy(ctx, req)
 	if err != nil {
@@ -164,6 +208,11 @@ func ExampleNodeGroupsClient_GetIamPolicy() {
 
 func ExampleNodeGroupsClient_Insert() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNodeGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -172,18 +221,26 @@ func ExampleNodeGroupsClient_Insert() {
 
 	req := &computepb.InsertNodeGroupRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#InsertNodeGroupRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#InsertNodeGroupRequest.
 	}
-	resp, err := c.Insert(ctx, req)
+	op, err := c.Insert(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleNodeGroupsClient_List() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNodeGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -192,7 +249,7 @@ func ExampleNodeGroupsClient_List() {
 
 	req := &computepb.ListNodeGroupsRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#ListNodeGroupsRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#ListNodeGroupsRequest.
 	}
 	it := c.List(ctx, req)
 	for {
@@ -210,6 +267,11 @@ func ExampleNodeGroupsClient_List() {
 
 func ExampleNodeGroupsClient_ListNodes() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNodeGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -218,7 +280,7 @@ func ExampleNodeGroupsClient_ListNodes() {
 
 	req := &computepb.ListNodesNodeGroupsRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#ListNodesNodeGroupsRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#ListNodesNodeGroupsRequest.
 	}
 	it := c.ListNodes(ctx, req)
 	for {
@@ -236,6 +298,11 @@ func ExampleNodeGroupsClient_ListNodes() {
 
 func ExampleNodeGroupsClient_Patch() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNodeGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -244,18 +311,26 @@ func ExampleNodeGroupsClient_Patch() {
 
 	req := &computepb.PatchNodeGroupRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#PatchNodeGroupRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#PatchNodeGroupRequest.
 	}
-	resp, err := c.Patch(ctx, req)
+	op, err := c.Patch(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleNodeGroupsClient_SetIamPolicy() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNodeGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -264,7 +339,7 @@ func ExampleNodeGroupsClient_SetIamPolicy() {
 
 	req := &computepb.SetIamPolicyNodeGroupRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#SetIamPolicyNodeGroupRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#SetIamPolicyNodeGroupRequest.
 	}
 	resp, err := c.SetIamPolicy(ctx, req)
 	if err != nil {
@@ -276,6 +351,11 @@ func ExampleNodeGroupsClient_SetIamPolicy() {
 
 func ExampleNodeGroupsClient_SetNodeTemplate() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNodeGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -284,18 +364,26 @@ func ExampleNodeGroupsClient_SetNodeTemplate() {
 
 	req := &computepb.SetNodeTemplateNodeGroupRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#SetNodeTemplateNodeGroupRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#SetNodeTemplateNodeGroupRequest.
 	}
-	resp, err := c.SetNodeTemplate(ctx, req)
+	op, err := c.SetNodeTemplate(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleNodeGroupsClient_TestIamPermissions() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewNodeGroupsRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -304,7 +392,7 @@ func ExampleNodeGroupsClient_TestIamPermissions() {
 
 	req := &computepb.TestIamPermissionsNodeGroupRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#TestIamPermissionsNodeGroupRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#TestIamPermissionsNodeGroupRequest.
 	}
 	resp, err := c.TestIamPermissions(ctx, req)
 	if err != nil {

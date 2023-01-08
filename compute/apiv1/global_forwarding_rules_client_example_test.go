@@ -1,4 +1,4 @@
-// Copyright 2021 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,12 +20,17 @@ import (
 	"context"
 
 	compute "cloud.google.com/go/compute/apiv1"
+	computepb "cloud.google.com/go/compute/apiv1/computepb"
 	"google.golang.org/api/iterator"
-	computepb "google.golang.org/genproto/googleapis/cloud/compute/v1"
 )
 
 func ExampleNewGlobalForwardingRulesRESTClient() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewGlobalForwardingRulesRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -38,6 +43,11 @@ func ExampleNewGlobalForwardingRulesRESTClient() {
 
 func ExampleGlobalForwardingRulesClient_Delete() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewGlobalForwardingRulesRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -46,18 +56,26 @@ func ExampleGlobalForwardingRulesClient_Delete() {
 
 	req := &computepb.DeleteGlobalForwardingRuleRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#DeleteGlobalForwardingRuleRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#DeleteGlobalForwardingRuleRequest.
 	}
-	resp, err := c.Delete(ctx, req)
+	op, err := c.Delete(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleGlobalForwardingRulesClient_Get() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewGlobalForwardingRulesRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -66,7 +84,7 @@ func ExampleGlobalForwardingRulesClient_Get() {
 
 	req := &computepb.GetGlobalForwardingRuleRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#GetGlobalForwardingRuleRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#GetGlobalForwardingRuleRequest.
 	}
 	resp, err := c.Get(ctx, req)
 	if err != nil {
@@ -78,6 +96,11 @@ func ExampleGlobalForwardingRulesClient_Get() {
 
 func ExampleGlobalForwardingRulesClient_Insert() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewGlobalForwardingRulesRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -86,18 +109,26 @@ func ExampleGlobalForwardingRulesClient_Insert() {
 
 	req := &computepb.InsertGlobalForwardingRuleRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#InsertGlobalForwardingRuleRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#InsertGlobalForwardingRuleRequest.
 	}
-	resp, err := c.Insert(ctx, req)
+	op, err := c.Insert(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleGlobalForwardingRulesClient_List() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewGlobalForwardingRulesRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -106,7 +137,7 @@ func ExampleGlobalForwardingRulesClient_List() {
 
 	req := &computepb.ListGlobalForwardingRulesRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#ListGlobalForwardingRulesRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#ListGlobalForwardingRulesRequest.
 	}
 	it := c.List(ctx, req)
 	for {
@@ -124,6 +155,11 @@ func ExampleGlobalForwardingRulesClient_List() {
 
 func ExampleGlobalForwardingRulesClient_Patch() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewGlobalForwardingRulesRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -132,18 +168,26 @@ func ExampleGlobalForwardingRulesClient_Patch() {
 
 	req := &computepb.PatchGlobalForwardingRuleRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#PatchGlobalForwardingRuleRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#PatchGlobalForwardingRuleRequest.
 	}
-	resp, err := c.Patch(ctx, req)
+	op, err := c.Patch(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleGlobalForwardingRulesClient_SetLabels() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewGlobalForwardingRulesRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -152,18 +196,26 @@ func ExampleGlobalForwardingRulesClient_SetLabels() {
 
 	req := &computepb.SetLabelsGlobalForwardingRuleRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#SetLabelsGlobalForwardingRuleRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#SetLabelsGlobalForwardingRuleRequest.
 	}
-	resp, err := c.SetLabels(ctx, req)
+	op, err := c.SetLabels(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }
 
 func ExampleGlobalForwardingRulesClient_SetTarget() {
 	ctx := context.Background()
+	// This snippet has been automatically generated and should be regarded as a code template only.
+	// It will require modifications to work:
+	// - It may require correct/in-range values for request initialization.
+	// - It may require specifying regional endpoints when creating the service client as shown in:
+	//   https://pkg.go.dev/cloud.google.com/go#hdr-Client_Options
 	c, err := compute.NewGlobalForwardingRulesRESTClient(ctx)
 	if err != nil {
 		// TODO: Handle error.
@@ -172,12 +224,15 @@ func ExampleGlobalForwardingRulesClient_SetTarget() {
 
 	req := &computepb.SetTargetGlobalForwardingRuleRequest{
 		// TODO: Fill request struct fields.
-		// See https://pkg.go.dev/google.golang.org/genproto/googleapis/cloud/compute/v1#SetTargetGlobalForwardingRuleRequest.
+		// See https://pkg.go.dev/cloud.google.com/go/compute/apiv1/computepb#SetTargetGlobalForwardingRuleRequest.
 	}
-	resp, err := c.SetTarget(ctx, req)
+	op, err := c.SetTarget(ctx, req)
 	if err != nil {
 		// TODO: Handle error.
 	}
-	// TODO: Use resp.
-	_ = resp
+
+	err = op.Wait(ctx)
+	if err != nil {
+		// TODO: Handle error.
+	}
 }

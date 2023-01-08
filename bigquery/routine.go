@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/internal/optional"
@@ -44,9 +45,26 @@ func (r *Routine) toBQ() *bq.RoutineReference {
 	}
 }
 
+// Identifier returns the ID of the routine in the requested format.
+//
+// For Standard SQL format, the identifier will be quoted if the
+// ProjectID contains dash (-) characters.
+func (r *Routine) Identifier(f IdentifierFormat) (string, error) {
+	switch f {
+	case StandardSQLID:
+		if strings.Contains(r.ProjectID, "-") {
+			return fmt.Sprintf("`%s`.%s.%s", r.ProjectID, r.DatasetID, r.RoutineID), nil
+		}
+		return fmt.Sprintf("%s.%s.%s", r.ProjectID, r.DatasetID, r.RoutineID), nil
+	default:
+		return "", ErrUnknownIdentifierFormat
+	}
+}
+
 // FullyQualifiedName returns an identifer for the routine in project.dataset.routine format.
 func (r *Routine) FullyQualifiedName() string {
-	return fmt.Sprintf("%s.%s.%s", r.ProjectID, r.DatasetID, r.RoutineID)
+	s, _ := r.Identifier(StandardSQLID)
+	return s
 }
 
 // Create creates a Routine in the BigQuery service.
@@ -79,7 +97,9 @@ func (r *Routine) Metadata(ctx context.Context) (rm *RoutineMetadata, err error)
 	setClientHeader(req.Header())
 	var routine *bq.Routine
 	err = runWithRetry(ctx, func() (err error) {
+		ctx = trace.StartSpan(ctx, "bigquery.routines.get")
 		routine, err = req.Do()
+		trace.EndSpan(ctx, err)
 		return err
 	})
 	if err != nil {
@@ -111,7 +131,9 @@ func (r *Routine) Update(ctx context.Context, upd *RoutineMetadataToUpdate, etag
 	}
 	var res *bq.Routine
 	if err := runWithRetry(ctx, func() (err error) {
+		ctx = trace.StartSpan(ctx, "bigquery.routines.update")
 		res, err = call.Do()
+		trace.EndSpan(ctx, err)
 		return err
 	}); err != nil {
 		return nil, err
@@ -141,6 +163,15 @@ const (
 	NotDeterministic RoutineDeterminism = "NOT_DETERMINISTIC"
 )
 
+const (
+	// ScalarFunctionRoutine scalar function routine type
+	ScalarFunctionRoutine = "SCALAR_FUNCTION"
+	// ProcedureRoutine procedure routine type
+	ProcedureRoutine = "PROCEDURE"
+	// TableValuedFunctionRoutine routine type for table valued functions
+	TableValuedFunctionRoutine = "TABLE_VALUED_FUNCTION"
+)
+
 // RoutineMetadata represents details of a given BigQuery Routine.
 type RoutineMetadata struct {
 	ETag string
@@ -155,7 +186,11 @@ type RoutineMetadata struct {
 	// Language of the routine, such as SQL or JAVASCRIPT.
 	Language string
 	// The list of arguments for the the routine.
-	Arguments  []*RoutineArgument
+	Arguments []*RoutineArgument
+
+	// Information for a remote user-defined function.
+	RemoteFunctionOptions *RemoteFunctionOptions
+
 	ReturnType *StandardSQLDataType
 
 	// Set only if the routine type is TABLE_VALUED_FUNCTION.
@@ -171,6 +206,66 @@ type RoutineMetadata struct {
 	// For JAVASCRIPT function, it is the evaluated string in the AS clause of
 	// a CREATE FUNCTION statement.
 	Body string
+}
+
+// RemoteFunctionOptions contains information for a remote user-defined function.
+type RemoteFunctionOptions struct {
+
+	// Fully qualified name of the user-provided connection object which holds
+	// the authentication information to send requests to the remote service.
+	// Format:
+	// projects/{projectId}/locations/{locationId}/connections/{connectionId}
+	Connection string
+
+	// Endpoint of the user-provided remote service (e.g. a function url in
+	// Google Cloud Function or Cloud Run )
+	Endpoint string
+
+	// Max number of rows in each batch sent to the remote service.
+	// If absent or if 0, it means no limit.
+	MaxBatchingRows int64
+
+	// User-defined context as a set of key/value pairs,
+	// which will be sent as function invocation context together with
+	// batched arguments in the requests to the remote service. The total
+	// number of bytes of keys and values must be less than 8KB.
+	UserDefinedContext map[string]string
+}
+
+func bqToRemoteFunctionOptions(in *bq.RemoteFunctionOptions) (*RemoteFunctionOptions, error) {
+	if in == nil {
+		return nil, nil
+	}
+	rfo := &RemoteFunctionOptions{
+		Connection:      in.Connection,
+		Endpoint:        in.Endpoint,
+		MaxBatchingRows: in.MaxBatchingRows,
+	}
+	if in.UserDefinedContext != nil {
+		rfo.UserDefinedContext = make(map[string]string)
+		for k, v := range in.UserDefinedContext {
+			rfo.UserDefinedContext[k] = v
+		}
+	}
+	return rfo, nil
+}
+
+func (rfo *RemoteFunctionOptions) toBQ() (*bq.RemoteFunctionOptions, error) {
+	if rfo == nil {
+		return nil, nil
+	}
+	r := &bq.RemoteFunctionOptions{
+		Connection:      rfo.Connection,
+		Endpoint:        rfo.Endpoint,
+		MaxBatchingRows: rfo.MaxBatchingRows,
+	}
+	if rfo.UserDefinedContext != nil {
+		r.UserDefinedContext = make(map[string]string)
+		for k, v := range rfo.UserDefinedContext {
+			r.UserDefinedContext[k] = v
+		}
+	}
+	return r, nil
 }
 
 func (rm *RoutineMetadata) toBQ() (*bq.Routine, error) {
@@ -191,7 +286,7 @@ func (rm *RoutineMetadata) toBQ() (*bq.Routine, error) {
 	if rm.ReturnTableType != nil {
 		tt, err := rm.ReturnTableType.toBQ()
 		if err != nil {
-			return nil, fmt.Errorf("couldn't convert return table type: %v", err)
+			return nil, fmt.Errorf("couldn't convert return table type: %w", err)
 		}
 		r.ReturnTableType = tt
 	}
@@ -205,6 +300,13 @@ func (rm *RoutineMetadata) toBQ() (*bq.Routine, error) {
 	}
 	r.Arguments = args
 	r.ImportedLibraries = rm.ImportedLibraries
+	if rm.RemoteFunctionOptions != nil {
+		rfo, err := rm.RemoteFunctionOptions.toBQ()
+		if err != nil {
+			return nil, err
+		}
+		r.RemoteFunctionOptions = rfo
+	}
 	if !rm.CreationTime.IsZero() {
 		return nil, errors.New("cannot set CreationTime on create")
 	}
@@ -414,6 +516,11 @@ func bqToRoutineMetadata(r *bq.Routine) (*RoutineMetadata, error) {
 		return nil, err
 	}
 	meta.ReturnType = ret
+	rfo, err := bqToRemoteFunctionOptions(r.RemoteFunctionOptions)
+	if err != nil {
+		return nil, err
+	}
+	meta.RemoteFunctionOptions = rfo
 	tt, err := bqToStandardSQLTableType(r.ReturnTableType)
 	if err != nil {
 		return nil, err
